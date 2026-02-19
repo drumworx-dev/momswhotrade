@@ -1,0 +1,26 @@
+{
+  "name": "Moms Who Trade",
+  "short_name": "MWT",
+  "description": "The World's #1 Mom-focused Trading Community",
+  "theme_color": "#E8DDD8",
+  "background_color": "#F5E6E8",
+  "display": "standalone",
+  "orientation": "portrait",
+  "start_url": "/",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    }
+  ],
+  "categories": ["finance", "education"]
+}
