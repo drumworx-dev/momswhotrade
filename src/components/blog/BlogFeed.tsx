@@ -72,12 +72,19 @@ export function BlogFeed() {
       <div className="bg-white px-4 pt-12 pb-3 sticky top-0 z-30 shadow-sm">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <svg viewBox="0 0 40 40" className="w-8 h-8" fill="none">
-              <rect x="5" y="20" width="6" height="15" rx="1.5" fill="#2D2D2D"/>
-              <rect x="15" y="13" width="6" height="22" rx="1.5" fill="#2D2D2D"/>
-              <rect x="25" y="6" width="6" height="29" rx="1.5" fill="#2D2D2D"/>
-              <path d="M5 18 L18 12 L28 5" stroke="#D4A5A5" strokeWidth="2" strokeLinecap="round"/>
-            </svg>
+            <img
+              src="/icon-192.png"
+              alt="Moms Who Trade"
+              className="w-8 h-8 rounded-lg object-cover"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                svg.setAttribute('viewBox', '0 0 40 40');
+                svg.setAttribute('class', 'w-8 h-8');
+                svg.innerHTML = '<rect x="5" y="20" width="6" height="15" rx="1.5" fill="#2D2D2D"/><rect x="15" y="13" width="6" height="22" rx="1.5" fill="#2D2D2D"/><rect x="25" y="6" width="6" height="29" rx="1.5" fill="#2D2D2D"/><path d="M5 18 L18 12 L28 5" stroke="#D4A5A5" stroke-width="2" stroke-linecap="round"/>';
+                e.currentTarget.parentElement?.insertBefore(svg, e.currentTarget);
+              }}
+            />
             <span className="font-bold text-text-primary text-base">Moms Who Trade</span>
           </div>
           <button
