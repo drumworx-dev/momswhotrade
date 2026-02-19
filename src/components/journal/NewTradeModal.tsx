@@ -130,10 +130,10 @@ export function NewTradeModal({ open, onClose }: NewTradeModalProps) {
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <Input label="Entry Price *" prefix="$" type="number" placeholder="43,250" value={form.entryPrice} onChange={e => update('entryPrice', e.target.value)} inputMode="decimal" />
-          <Input label="Stop Loss *" prefix="$" type="number" placeholder="42,500" value={form.stopLoss} onChange={e => update('stopLoss', e.target.value)} inputMode="decimal" />
-          <Input label="Take Profit" prefix="$" type="number" placeholder="45,000" value={form.takeProfit} onChange={e => update('takeProfit', e.target.value)} inputMode="decimal" />
-          <Input label="Position Size ($)" type="number" placeholder="100" value={form.positionSize} onChange={e => update('positionSize', e.target.value)} inputMode="decimal" />
+          <Input label="Entry Price *" prefix="$" type="text" placeholder="80.25" value={form.entryPrice} onChange={e => update('entryPrice', e.target.value)} inputMode="decimal" />
+          <Input label="Stop Loss *" prefix="$" type="text" placeholder="78.50" value={form.stopLoss} onChange={e => update('stopLoss', e.target.value)} inputMode="decimal" />
+          <Input label="Take Profit" prefix="$" type="text" placeholder="90.00" value={form.takeProfit} onChange={e => update('takeProfit', e.target.value)} inputMode="decimal" />
+          <Input label="Position Size ($)" type="text" placeholder="100" value={form.positionSize} onChange={e => update('positionSize', e.target.value)} inputMode="decimal" />
         </div>
 
         <div className="grid grid-cols-2 gap-3">

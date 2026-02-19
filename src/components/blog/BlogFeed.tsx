@@ -53,6 +53,7 @@ export function BlogFeed() {
   const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
   const { user, signOut } = useAuth();
   const streak = useLoginStreak();
+  const firstName = user?.displayName?.split(' ')[0] || '';
 
   useEffect(() => {
     if (!GHOST_CONFIG.key) return;
@@ -128,7 +129,9 @@ export function BlogFeed() {
           return (
             <div className={`flex items-center gap-2 px-3 py-2 rounded-xl mb-2.5 ${bgClass}`}>
               <div className={`w-2 h-2 rounded-full flex-shrink-0 ${dotClass}`} />
-              <span className="text-xs font-medium text-text-secondary">Consistency is key</span>
+              <span className="text-xs font-medium text-text-secondary">
+        Consistency is key{firstName ? `, ${firstName}` : ''} 🔑
+      </span>
               <div className="flex gap-0.5 ml-1">
                 {Array.from({ length: streak.denominator }, (_, i) => (
                   <div key={i} className={`w-1.5 h-1.5 rounded-full ${i < streak.activeDays ? dotClass : 'bg-gray-200'}`} />
