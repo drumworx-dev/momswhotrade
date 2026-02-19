@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import { getAnalytics, isSupported } from 'firebase/analytics';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyDTpMwA3YoynWGyuoIGkdDXZD_jva9Kh-k',
@@ -12,6 +13,10 @@ const firebaseConfig = {
   measurementId: 'G-D0BB6SSRGM',
 };
 
-export const app = initializeApp(firebaseConfig);
+export const app  = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+export const db   = getFirestore(app);
+
+// Initialize Analytics only in environments that support it (browser with cookies enabled).
+// isSupported() guards against SSR or privacy-restricted contexts.
+export const analytics = isSupported().then(yes => yes ? getAnalytics(app) : null);

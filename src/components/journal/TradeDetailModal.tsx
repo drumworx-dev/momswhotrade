@@ -3,7 +3,7 @@ import type { Trade } from '../../types';
 import { Modal } from '../shared/Modal';
 import { Button } from '../shared/Button';
 import { Input } from '../shared/Input';
-import { formatCurrency, formatPercent } from '../../utils/formatters';
+import { formatPrice, formatPercent } from '../../utils/formatters';
 import { calculateTradeResult } from '../../utils/calculations';
 import { useTrades } from '../../context/TradesContext';
 import { toast } from 'react-hot-toast';
@@ -68,12 +68,12 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
           <h4 className="text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-3">Trade Details (Locked)</h4>
           <div className="grid grid-cols-2 gap-2 text-sm">
             {([
-              ['Entry', formatCurrency(trade.entryPrice, 2)],
-              ['Stop Loss', formatCurrency(trade.stopLoss, 2)],
-              ['Take Profit', formatCurrency(trade.takeProfit, 2)],
+              ['Entry', formatPrice(trade.entryPrice, trade.assetCategory)],
+              ['Stop Loss', formatPrice(trade.stopLoss, trade.assetCategory)],
+              ['Take Profit', formatPrice(trade.takeProfit, trade.assetCategory)],
               ['Direction', trade.direction?.toUpperCase()],
               ['R:R', trade.riskReward],
-              ['Size ($)', formatCurrency(trade.positionSize)],
+              ['Size ($)', formatPrice(trade.positionSize)],
               ['Leverage', `${leverage}x`],
               ...(trade.closedAt ? [['Closed', new Date(trade.closedAt + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })]] : []),
             ] as [string, string][]).map(([label, value]) => (
@@ -85,7 +85,7 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
           </div>
           {leverage > 1 && (
             <div className="mt-2 text-xs text-text-tertiary bg-orange-50 rounded px-2 py-1">
-              Effective position: {formatCurrency(trade.positionSize * leverage)} ({leverage}x leverage)
+              Effective position: {formatPrice(trade.positionSize * leverage)} ({leverage}x leverage)
             </div>
           )}
         </div>
@@ -116,7 +116,7 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
         <Input
           label="Close Price (optional)"
           prefix="$"
-          type="number"
+          type="text"
           placeholder="Enter closing price"
           value={closePrice}
           onChange={e => setClosePrice(e.target.value)}
@@ -126,12 +126,12 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
         {previewResult && (
           <div className="bg-surface-dim rounded-card p-3">
             <div className={`text-center font-bold text-lg ${previewResult.winLoss === 'win' ? 'text-accent-success' : 'text-accent-error'}`}>
-              {previewResult.profitLoss >= 0 ? '+' : ''}{formatCurrency(previewResult.profitLoss)}{' '}
+              {previewResult.profitLoss >= 0 ? '+' : ''}{formatPrice(previewResult.profitLoss)}{' '}
               ({formatPercent(previewResult.profitLossPercent)})
             </div>
             {leverage > 1 && (
               <div className="text-center text-xs text-text-tertiary mt-1">
-                Includes {leverage}x leverage on ${formatCurrency(trade.positionSize)} margin
+                Includes {leverage}x leverage on {formatPrice(trade.positionSize)} margin
               </div>
             )}
           </div>

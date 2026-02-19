@@ -8,6 +8,18 @@ export function formatCurrency(value: number, decimals = 2): string {
   }).format(value);
 }
 
+/** Category-aware price formatter: 4dp for forex (pip precision), 2dp for everything else. */
+export function formatPrice(value: number, category?: string): string {
+  if (!isFinite(value)) return '$0.00';
+  const decimals = category === 'forex' ? 4 : 2;
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).format(value);
+}
+
 export function formatPercent(value: number, decimals = 2): string {
   if (!isFinite(value)) return '0.00%';
   return `${value >= 0 ? '+' : ''}${value.toFixed(decimals)}%`;

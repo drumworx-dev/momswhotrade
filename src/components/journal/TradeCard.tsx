@@ -1,5 +1,5 @@
 import type { Trade } from '../../types';
-import { formatCurrency, formatPercent } from '../../utils/formatters';
+import { formatPrice, formatPercent } from '../../utils/formatters';
 
 interface TradeCardProps {
   trade: Trade;
@@ -57,14 +57,14 @@ export function TradeCard({ trade, onClick }: TradeCardProps) {
       {isClosed && trade.closePrice ? (
         <div className="mb-2">
           <div className="flex items-center gap-2 text-sm text-text-secondary">
-            <span>Entry: {formatCurrency(trade.entryPrice, 2)}</span>
+            <span>Entry: {formatPrice(trade.entryPrice, trade.assetCategory)}</span>
             <span>→</span>
-            <span>Close: {formatCurrency(trade.closePrice, 2)}</span>
+            <span>Close: {formatPrice(trade.closePrice, trade.assetCategory)}</span>
           </div>
           <div className={`font-semibold ${pnlColor} mt-1`}>
             {trade.profitLoss !== undefined ? (
               <>
-                {trade.profitLoss >= 0 ? '↑' : '↓'} {trade.profitLoss >= 0 ? '+' : ''}{formatCurrency(trade.profitLoss)}
+                {trade.profitLoss >= 0 ? '↑' : '↓'} {trade.profitLoss >= 0 ? '+' : ''}{formatPrice(trade.profitLoss)}
                 {trade.profitLossPercent !== undefined && (
                   <span className="text-sm font-normal ml-1">({formatPercent(trade.profitLossPercent)})</span>
                 )}
@@ -74,15 +74,15 @@ export function TradeCard({ trade, onClick }: TradeCardProps) {
         </div>
       ) : isOpen ? (
         <div className="mb-2 text-sm text-text-secondary">
-          <div>Entry: {formatCurrency(trade.entryPrice, 2)}</div>
+          <div>Entry: {formatPrice(trade.entryPrice, trade.assetCategory)}</div>
           <div className="flex gap-3 mt-1 text-xs">
-            <span>TP: {formatCurrency(trade.takeProfit, 2)}</span>
-            <span>SL: {formatCurrency(trade.stopLoss, 2)}</span>
+            <span>TP: {formatPrice(trade.takeProfit, trade.assetCategory)}</span>
+            <span>SL: {formatPrice(trade.stopLoss, trade.assetCategory)}</span>
           </div>
         </div>
       ) : (
         <div className="mb-2 text-sm text-text-secondary">
-          Entry: {formatCurrency(trade.entryPrice, 2)}
+          Entry: {formatPrice(trade.entryPrice, trade.assetCategory)}
         </div>
       )}
 
