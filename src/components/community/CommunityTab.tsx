@@ -7,7 +7,7 @@ export function CommunityTab() {
       {/* Header */}
       <div className="bg-white px-4 pb-4 sticky top-0 z-30 shadow-sm page-header">
         <h1 className="text-xl font-bold text-text-primary">Community</h1>
-        <p className="text-text-secondary text-sm">Connect with moms who trade</p>
+        <p className="text-text-secondary text-sm">Connect with Moms Who Trade</p>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-4 pb-32">
