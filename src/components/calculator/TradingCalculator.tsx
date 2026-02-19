@@ -20,18 +20,22 @@ const CURRENCIES: { code: CurrencyCode; label: string; sym: string }[] = [
 
 const RR_PRESETS = ['1:3', '1:5', '1:10'];
 
+const LEVERAGE_PRESETS = ['1', '3', '5', '7', '10', '20'];
+const TIMEFRAME_PRESETS = ['15M', '1H', '4H', '1D', '1W'];
+
 const DEFAULT: CalculatorState = {
   assetName:      '',
   currency:       'USD',
   accountBalance: '',
-  riskType:       'percent',
-  riskValue:      '5',
+  riskType:       'dollar',
+  riskValue:      '',
   leverage:       '1',
   entryPrice:     '',
   stopLoss:       '',
   takeProfit:     '',
   direction:      'long',
   riskReward:     '1:3',
+  timeframe:      '4H',
 };
 
 // ─── helpers ───────────────────────────────────────────────────────────────
@@ -159,7 +163,7 @@ export function TradingCalculator() {
       valueTraded:   results.effectivePosition,
       token:         state.assetName || '',
       assetCategory: 'crypto',
-      timeframe:     '4hr',
+      timeframe:     state.timeframe,
       leverage:      levNum,
       cause:         '',
       status,
@@ -178,7 +182,7 @@ export function TradingCalculator() {
   return (
     <div className="flex flex-col h-full bg-bg-primary">
       {/* Header */}
-      <div className="bg-white px-4 pt-12 pb-4 sticky top-0 z-30 shadow-sm">
+      <div className="bg-white px-4 pt-6 pb-4 sticky top-0 z-30 shadow-sm">
         <h1 className="text-xl font-bold text-text-primary">Trade Calculator</h1>
         <p className="text-text-secondary text-sm">Size your position & visualise the trade</p>
       </div>
@@ -268,25 +272,23 @@ export function TradingCalculator() {
                 )}
               </div>
 
-              {/* Leverage slider */}
+              {/* Leverage buttons */}
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-sm font-medium text-text-secondary">Leverage</label>
-                  <span className="text-sm font-bold text-text-primary bg-surface-dim px-2.5 py-0.5 rounded-pill">
-                    {state.leverage}x
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={1} max={100}
-                  value={state.leverage}
-                  onChange={e => update('leverage', e.target.value)}
-                  className="w-full cursor-pointer"
-                  style={{ accentColor: '#1a1a1a' }}
-                />
-                <div className="flex justify-between text-xs text-text-tertiary mt-1">
-                  <span>1:1</span>
-                  <span>1:100</span>
+                <label className="block text-sm font-medium text-text-secondary mb-1.5">Leverage</label>
+                <div className="flex gap-1.5 flex-wrap">
+                  {LEVERAGE_PRESETS.map(lev => (
+                    <button
+                      key={lev}
+                      onClick={() => update('leverage', lev)}
+                      className={`flex-1 py-2.5 rounded-input text-sm font-semibold border transition-all ${
+                        state.leverage === lev
+                          ? 'bg-text-primary text-white border-text-primary'
+                          : 'bg-white border-gray-200 text-text-secondary hover:border-gray-400'
+                      }`}
+                    >
+                      {lev}×
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -303,6 +305,26 @@ export function TradingCalculator() {
                       }`}
                     >
                       {dir === 'long' ? '↑ LONG' : '↓ SHORT'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Timeframe */}
+              <div>
+                <label className="block text-sm font-medium text-text-secondary mb-1.5">Timeframe</label>
+                <div className="flex gap-1.5">
+                  {TIMEFRAME_PRESETS.map(tf => (
+                    <button
+                      key={tf}
+                      onClick={() => update('timeframe', tf)}
+                      className={`flex-1 py-2.5 rounded-input text-sm font-semibold border transition-all ${
+                        state.timeframe === tf
+                          ? 'bg-text-primary text-white border-text-primary'
+                          : 'bg-white border-gray-200 text-text-secondary hover:border-gray-400'
+                      }`}
+                    >
+                      {tf}
                     </button>
                   ))}
                 </div>
