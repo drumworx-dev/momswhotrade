@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ChevronDown, ChevronUp, RefreshCw, Pencil, Check, X } from 'lucide-react';
 import { useGoals } from '../../context/GoalsContext';
 import { useTrades } from '../../context/TradesContext';
@@ -12,16 +12,25 @@ export function GoalTracker() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [startBalance, setStartBalance] = useState(settings.startingBalance.toString());
   const [dailyPct, setDailyPct] = useState(settings.dailyGoalPercent.toString());
-  // Inline edit state: date -> editing value
   const [editingRow, setEditingRow] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState('');
+
+  // Keep local settings state in sync when context resets (e.g. Start Over)
+  useEffect(() => {
+    setStartBalance(settings.startingBalance.toString());
+    setDailyPct(settings.dailyGoalPercent.toString());
+  }, [settings.startingBalance, settings.dailyGoalPercent]);
 
   const today = new Date().toISOString().split('T')[0];
   const todayRow = goalRows.find(r => r.date === today);
 
+  // Use closedAt date if available, fall back to updatedAt
+  const closedDateOf = (t: (typeof trades)[0]) =>
+    t.closedAt ?? t.updatedAt?.toDate?.()?.toISOString().split('T')[0] ?? null;
+
   const todayPnL = trades
     .filter(t => {
-      const d = t.updatedAt?.toDate?.()?.toISOString().split('T')[0];
+      const d = closedDateOf(t);
       return d === today && (t.status === 'closed' || t.status === 'tp_reached' || t.status === 'sl_hit');
     })
     .reduce((sum, t) => sum + (t.profitLoss || 0), 0);
@@ -36,12 +45,12 @@ export function GoalTracker() {
     const tradesByDate: Record<string, number> = {};
     trades.forEach(t => {
       if (t.profitLoss !== undefined && (t.status === 'closed' || t.status === 'tp_reached' || t.status === 'sl_hit')) {
-        const d = t.updatedAt?.toDate?.()?.toISOString().split('T')[0] || today;
+        const d = closedDateOf(t) || today;
         tradesByDate[d] = (tradesByDate[d] || 0) + t.profitLoss;
       }
     });
     Object.entries(tradesByDate).forEach(([date, pnl]) => updateDailyGoal(date, pnl));
-    toast.success('Journal synced!');
+    toast.success('Trades synced to goals!');
   };
 
   const handleSaveSettings = () => {
@@ -49,6 +58,7 @@ export function GoalTracker() {
       startingBalance: parseFloat(startBalance) || 1000,
       dailyGoalPercent: parseFloat(dailyPct) || 1,
     });
+    setSettingsOpen(false);
     toast.success('Settings saved!');
   };
 
@@ -82,7 +92,7 @@ export function GoalTracker() {
             className="flex items-center gap-1.5 text-sm text-text-secondary bg-surface-dim px-3 py-2 rounded-pill hover:bg-bg-secondary transition-colors"
           >
             <RefreshCw size={14} />
-            Sync
+            Sync Trades
           </button>
         </div>
       </div>
@@ -90,7 +100,7 @@ export function GoalTracker() {
       <div className="flex-1 overflow-y-auto px-4 py-4 pb-32">
         <div className="max-w-lg mx-auto flex flex-col gap-4">
 
-          {/* ── PROJECTED OUTCOME — top of page for motivation ── */}
+          {/* ── 1. PROJECTED OUTCOME ─────────────────────────────── */}
           <div className="bg-gradient-to-br from-text-primary to-gray-800 rounded-card shadow-md p-5 text-white">
             <div className="text-xs font-semibold uppercase tracking-wider opacity-60 mb-1">
               {settings.horizon}-Day Projection
@@ -112,9 +122,9 @@ export function GoalTracker() {
               </span>
               <button
                 onClick={() => {
-                  if (confirm('Clear your projection and start over from today?')) {
+                  if (confirm('Reset to $1,000 starting capital, 30 days, 2% daily goal?')) {
                     clearProjection();
-                    toast.success('Projection cleared — save new settings to begin');
+                    toast.success('Reset to defaults — save new settings to begin');
                   }
                 }}
                 className="text-xs opacity-50 hover:opacity-100 transition-opacity underline ml-4 flex-shrink-0"
@@ -124,7 +134,82 @@ export function GoalTracker() {
             </div>
           </div>
 
-          {/* Today's Status Card */}
+          {/* ── 2. SETTINGS (2nd from top) ────────────────────────── */}
+          <div className="bg-white rounded-card shadow-sm overflow-hidden">
+            <button
+              onClick={() => setSettingsOpen(!settingsOpen)}
+              className="w-full flex items-center justify-between p-4 text-left"
+            >
+              <span className="font-semibold text-text-primary">Settings</span>
+              {settingsOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+            </button>
+
+            {settingsOpen && (
+              <div className="px-4 pb-4 flex flex-col gap-4 border-t border-gray-100">
+                {/* Starting Balance */}
+                <div>
+                  <label className="block text-sm font-medium text-text-secondary mb-1.5">Starting Balance</label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary">$</span>
+                    <input
+                      type="number"
+                      value={startBalance}
+                      onChange={e => setStartBalance(e.target.value)}
+                      className="w-full bg-surface-dim border border-gray-200 rounded-input pl-8 pr-4 py-3 text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary"
+                    />
+                  </div>
+                </div>
+
+                {/* Daily Goal % — slider */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-sm font-medium text-text-secondary">Daily Goal %</label>
+                    <span className="text-lg font-bold text-text-primary">{parseFloat(dailyPct || '0').toFixed(1)}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0.5"
+                    max="10"
+                    step="0.1"
+                    value={dailyPct}
+                    onChange={e => setDailyPct(e.target.value)}
+                    className="w-full h-2 rounded-full appearance-none cursor-pointer"
+                    style={{
+                      background: `linear-gradient(to right, #2D2D2D ${((parseFloat(dailyPct) - 0.5) / 9.5) * 100}%, #e5e7eb ${((parseFloat(dailyPct) - 0.5) / 9.5) * 100}%)`,
+                    }}
+                  />
+                  <div className="flex justify-between text-xs text-text-tertiary mt-1">
+                    <span>0.5%</span>
+                    <span>10%</span>
+                  </div>
+                </div>
+
+                {/* Time Horizon */}
+                <div>
+                  <label className="block text-sm font-medium text-text-secondary mb-1.5">Time Horizon</label>
+                  <div className="flex gap-2">
+                    {([30, 60, 90] as const).map(h => (
+                      <button
+                        key={h}
+                        onClick={() => updateSettings({ horizon: h })}
+                        className={`flex-1 py-2 rounded-pill text-sm font-medium border transition-all ${
+                          settings.horizon === h
+                            ? 'bg-text-primary text-white border-text-primary'
+                            : 'bg-white border-gray-200 text-text-secondary hover:border-text-primary'
+                        }`}
+                      >
+                        {h} days
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <Button onClick={handleSaveSettings} fullWidth>Save Settings</Button>
+              </div>
+            )}
+          </div>
+
+          {/* ── 3. TODAY'S GOAL STATUS ────────────────────────────── */}
           {todayRow && (
             <div className="bg-white rounded-card shadow-sm p-5">
               <div className="text-sm font-medium text-text-secondary mb-1">Today's Goal</div>
@@ -161,72 +246,12 @@ export function GoalTracker() {
             </div>
           )}
 
-          {/* Settings */}
-          <div className="bg-white rounded-card shadow-sm overflow-hidden">
-            <button
-              onClick={() => setSettingsOpen(!settingsOpen)}
-              className="w-full flex items-center justify-between p-4 text-left"
-            >
-              <span className="font-semibold text-text-primary">Settings</span>
-              {settingsOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-            </button>
-
-            {settingsOpen && (
-              <div className="px-4 pb-4 flex flex-col gap-4 border-t border-gray-100">
-                <div>
-                  <label className="block text-sm font-medium text-text-secondary mb-1.5">Starting Balance</label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary">$</span>
-                    <input
-                      type="number"
-                      value={startBalance}
-                      onChange={e => setStartBalance(e.target.value)}
-                      className="w-full bg-surface-dim border border-gray-200 rounded-input pl-8 pr-4 py-3 text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-text-secondary mb-1.5">Daily Goal %</label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      value={dailyPct}
-                      onChange={e => setDailyPct(e.target.value)}
-                      step="0.1"
-                      className="w-full bg-surface-dim border border-gray-200 rounded-input px-4 pr-8 py-3 text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary"
-                    />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-text-secondary">%</span>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-text-secondary mb-1.5">Time Horizon</label>
-                  <div className="flex gap-2">
-                    {([30, 60, 90] as const).map(h => (
-                      <button
-                        key={h}
-                        onClick={() => updateSettings({ horizon: h })}
-                        className={`flex-1 py-2 rounded-pill text-sm font-medium border transition-all ${
-                          settings.horizon === h
-                            ? 'bg-text-primary text-white border-text-primary'
-                            : 'bg-white border-gray-200 text-text-secondary hover:border-text-primary'
-                        }`}
-                      >
-                        {h} days
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <Button onClick={handleSaveSettings} fullWidth>Save Settings</Button>
-              </div>
-            )}
-          </div>
-
-          {/* Goal Table */}
+          {/* ── 4. PROJECTION TABLE ───────────────────────────────── */}
           <div className="bg-white rounded-card shadow-sm overflow-hidden">
             <div className="p-4 border-b border-gray-100">
               <h3 className="font-semibold text-text-primary">{settings.horizon}-Day Projection</h3>
               <p className="text-xs text-text-secondary mt-1">
-                Tap the pencil icon on any row to override its starting balance (e.g. if you missed a day or held a trade over multiple days).
+                Tap the pencil icon on any row to override its starting balance.
               </p>
             </div>
             <div className="overflow-x-auto">

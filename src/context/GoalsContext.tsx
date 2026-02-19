@@ -66,9 +66,9 @@ export function GoalsProvider({ children }: { children: React.ReactNode }) {
     setStartBalanceOverrides(prev => ({ ...prev, [date]: balance }));
   };
 
-  // Reset everything so the user can start a new projection from today
+  // Reset everything and return to default settings ($1,000 / 30 days / 2%)
   const clearProjection = () => {
-    setSettings(prev => ({ ...prev, projectionStartDate: '' }));
+    setSettings({ startingBalance: 1000, dailyGoalPercent: 2, horizon: 30, projectionStartDate: '' });
     setDailyGoals([]);
     setStartBalanceOverrides({});
     localStorage.removeItem('mwt_daily_goals');

@@ -23,8 +23,15 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
 
   const leverage = trade.leverage || 1;
 
+  const CLOSED_STATUSES: Trade['status'][] = ['closed', 'tp_reached', 'sl_hit'];
+
   const handleUpdate = () => {
     const updates: Partial<Trade> = { status, cause, token };
+
+    // Set closedAt date the first time a trade transitions to a closed status
+    if (CLOSED_STATUSES.includes(status) && !trade.closedAt) {
+      updates.closedAt = new Date().toISOString().split('T')[0];
+    }
 
     if (closePrice) {
       const cp = parseFloat(closePrice);
@@ -60,7 +67,7 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
         <div className="bg-surface-dim rounded-card p-4">
           <h4 className="text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-3">Trade Details (Locked)</h4>
           <div className="grid grid-cols-2 gap-2 text-sm">
-            {[
+            {([
               ['Entry', formatCurrency(trade.entryPrice, 2)],
               ['Stop Loss', formatCurrency(trade.stopLoss, 2)],
               ['Take Profit', formatCurrency(trade.takeProfit, 2)],
@@ -68,7 +75,8 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
               ['R:R', trade.riskReward],
               ['Size ($)', formatCurrency(trade.positionSize)],
               ['Leverage', `${leverage}x`],
-            ].map(([label, value]) => (
+              ...(trade.closedAt ? [['Closed', new Date(trade.closedAt + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })]] : []),
+            ] as [string, string][]).map(([label, value]) => (
               <div key={label}>
                 <div className="text-text-tertiary text-xs">{label}</div>
                 <div className="font-medium text-text-primary">{value}</div>
