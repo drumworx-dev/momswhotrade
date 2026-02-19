@@ -9,7 +9,7 @@ import { formatCurrency, formatNumber } from '../../utils/formatters';
 import type { CalculatorState, CalculatorResults } from '../../types';
 import { useTrades } from '../../context/TradesContext';
 import { useAuth } from '../../context/AuthContext';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Info } from 'lucide-react';
 
 const defaultState: CalculatorState = {
   accountBalance: '',
@@ -17,11 +17,12 @@ const defaultState: CalculatorState = {
   riskValue: '1',
   entryPrice: '',
   stopLoss: '',
+  takeProfit: '',
   direction: 'long',
-  riskReward: '1:2',
+  riskReward: '1:3',
 };
 
-const rrOptions = ['1:1', '1:2', '1:3', '1:5'];
+const rrOptions = ['1:3', '1:5', '1:10'];
 
 export function TradingCalculator() {
   const [state, setState] = useState<CalculatorState>(defaultState);
@@ -31,12 +32,17 @@ export function TradingCalculator() {
 
   const update = (key: keyof CalculatorState, value: string) => {
     setState(prev => ({ ...prev, [key]: value }));
+    // Clear results when inputs change
+    setResults(null);
   };
+
+  const hasManualTP = state.takeProfit.trim() !== '' && !isNaN(parseFloat(state.takeProfit));
+  const hasEntryPrice = state.entryPrice.trim() !== '' && !isNaN(parseFloat(state.entryPrice));
 
   const handleCalculate = () => {
     const r = calculateTrade(state);
     if (!r) {
-      toast.error('Please fill in all required fields');
+      toast.error('Please fill in Account Balance, Entry Price, and Stop Loss');
       return;
     }
     setResults(r);
@@ -52,10 +58,11 @@ export function TradingCalculator() {
       stopLoss: parseFloat(state.stopLoss),
       takeProfit: results.takeProfitPrice,
       direction: state.direction,
-      riskReward: state.riskReward,
+      riskReward: results.actualRiskReward,
       positionSize: results.positionSize,
       valueTraded: results.positionSize * parseFloat(state.entryPrice),
       token: '',
+      assetCategory: 'crypto',
       timeframe: '4hr',
       leverage: 1,
       cause: '',
@@ -74,6 +81,11 @@ export function TradingCalculator() {
   };
 
   const riskHighlight = results && results.riskPercent > 2;
+
+  // Parse actual R:R for display in visual bar
+  const rrForBar = results?.actualRiskReward || state.riskReward;
+  const rrParts = rrForBar.split(':');
+  const rewardPart = rrParts.length === 2 ? parseFloat(rrParts[1]) : 3;
 
   return (
     <div className="flex flex-col h-full bg-bg-primary">
@@ -172,25 +184,52 @@ export function TradingCalculator() {
                 inputMode="decimal"
               />
 
-              {/* Risk:Reward */}
-              <div>
-                <label className="block text-sm font-medium text-text-secondary mb-1.5">Risk:Reward Ratio</label>
-                <div className="flex gap-2 flex-wrap">
-                  {rrOptions.map(rr => (
-                    <button
-                      key={rr}
-                      onClick={() => update('riskReward', rr)}
-                      className={`flex-none px-4 py-2 rounded-pill text-sm font-medium border transition-all ${
-                        state.riskReward === rr
-                          ? 'bg-text-primary text-white border-text-primary'
-                          : 'bg-white border-gray-200 text-text-secondary hover:border-text-primary'
-                      }`}
-                    >
-                      {rr}
-                    </button>
-                  ))}
+              <Input
+                label="Take Profit (optional)"
+                prefix="$"
+                type="number"
+                placeholder="Enter to get exact R:R"
+                value={state.takeProfit}
+                onChange={e => update('takeProfit', e.target.value)}
+                inputMode="decimal"
+              />
+
+              {/* Risk:Reward presets — optional helper when TP is not set */}
+              {hasEntryPrice && (
+                <div>
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <label className={`text-sm font-medium ${hasManualTP ? 'text-text-tertiary' : 'text-text-secondary'}`}>
+                      R:R Preset
+                    </label>
+                    {hasManualTP && (
+                      <span className="text-xs text-text-tertiary italic">(overridden by your Take Profit)</span>
+                    )}
+                    {!hasManualTP && (
+                      <span className="text-xs text-text-tertiary flex items-center gap-0.5">
+                        <Info size={11} /> sets TP automatically
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    {rrOptions.map(rr => (
+                      <button
+                        key={rr}
+                        onClick={() => !hasManualTP && update('riskReward', rr)}
+                        disabled={hasManualTP}
+                        className={`flex-1 py-2 rounded-pill text-sm font-medium border transition-all ${
+                          hasManualTP
+                            ? 'bg-surface-dim border-gray-100 text-text-tertiary cursor-not-allowed'
+                            : state.riskReward === rr
+                            ? 'bg-text-primary text-white border-text-primary'
+                            : 'bg-white border-gray-200 text-text-secondary hover:border-text-primary'
+                        }`}
+                      >
+                        {rr}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </Card>
 
@@ -239,9 +278,13 @@ export function TradingCalculator() {
                       <span className="text-text-secondary text-sm">Potential Profit</span>
                       <span className="font-semibold text-accent-success font-mono">{formatCurrency(results.potentialProfit)}</span>
                     </div>
-                    <div className="flex justify-between items-center py-2">
+                    <div className="flex justify-between items-center py-2 border-b border-gray-50">
                       <span className="text-text-secondary text-sm">Take Profit Price</span>
                       <span className="font-semibold text-text-primary font-mono">{formatCurrency(results.takeProfitPrice, 2)}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2">
+                      <span className="text-text-secondary text-sm">Risk : Reward</span>
+                      <span className="font-bold text-accent-primary font-mono">{results.actualRiskReward}</span>
                     </div>
                   </div>
 
@@ -252,7 +295,7 @@ export function TradingCalculator() {
                       <div
                         className="h-3 bg-accent-error rounded-full"
                         style={{
-                          width: `${100 / (1 + parseFloat(state.riskReward.split(':')[1] || '2'))}%`,
+                          width: `${100 / (1 + rewardPart)}%`,
                           minWidth: '20px'
                         }}
                       />
@@ -263,7 +306,7 @@ export function TradingCalculator() {
                       <div
                         className="h-3 bg-accent-success rounded-full"
                         style={{
-                          width: `${parseFloat(state.riskReward.split(':')[1] || '2') * 100 / (1 + parseFloat(state.riskReward.split(':')[1] || '2'))}%`,
+                          width: `${rewardPart * 100 / (1 + rewardPart)}%`,
                           minWidth: '20px'
                         }}
                       />

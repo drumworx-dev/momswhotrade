@@ -21,12 +21,14 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
   const [cause, setCause] = useState(trade.cause || '');
   const [token, setToken] = useState(trade.token || '');
 
+  const leverage = trade.leverage || 1;
+
   const handleUpdate = () => {
     const updates: Partial<Trade> = { status, cause, token };
 
     if (closePrice) {
       const cp = parseFloat(closePrice);
-      const result = calculateTradeResult(trade.direction, trade.entryPrice, cp, trade.positionSize);
+      const result = calculateTradeResult(trade.direction, trade.entryPrice, cp, trade.positionSize, leverage);
       Object.assign(updates, {
         closePrice: cp,
         profitLoss: result.profitLoss,
@@ -46,6 +48,11 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
     onClose();
   };
 
+  // Live P&L preview
+  const previewResult = closePrice && !isNaN(parseFloat(closePrice))
+    ? calculateTradeResult(trade.direction, trade.entryPrice, parseFloat(closePrice), trade.positionSize, leverage)
+    : null;
+
   return (
     <Modal open={open} onClose={onClose} title={`${trade.token || 'Trade'} ${trade.direction?.toUpperCase()}`}>
       <div className="flex flex-col gap-4">
@@ -59,7 +66,8 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
               ['Take Profit', formatCurrency(trade.takeProfit, 2)],
               ['Direction', trade.direction?.toUpperCase()],
               ['R:R', trade.riskReward],
-              ['Size', trade.positionSize?.toFixed(4)],
+              ['Size ($)', formatCurrency(trade.positionSize)],
+              ['Leverage', `${leverage}x`],
             ].map(([label, value]) => (
               <div key={label}>
                 <div className="text-text-tertiary text-xs">{label}</div>
@@ -67,6 +75,11 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
               </div>
             ))}
           </div>
+          {leverage > 1 && (
+            <div className="mt-2 text-xs text-text-tertiary bg-orange-50 rounded px-2 py-1">
+              Effective position: {formatCurrency(trade.positionSize * leverage)} ({leverage}x leverage)
+            </div>
+          )}
         </div>
 
         {/* Editable fields */}
@@ -102,16 +115,17 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
           inputMode="decimal"
         />
 
-        {closePrice && !isNaN(parseFloat(closePrice)) && (
+        {previewResult && (
           <div className="bg-surface-dim rounded-card p-3">
-            {(() => {
-              const result = calculateTradeResult(trade.direction, trade.entryPrice, parseFloat(closePrice), trade.positionSize);
-              return (
-                <div className={`text-center font-bold text-lg ${result.winLoss === 'win' ? 'text-accent-success' : 'text-accent-error'}`}>
-                  {result.profitLoss >= 0 ? '+' : ''}{formatCurrency(result.profitLoss)} ({formatPercent(result.profitLossPercent)})
-                </div>
-              );
-            })()}
+            <div className={`text-center font-bold text-lg ${previewResult.winLoss === 'win' ? 'text-accent-success' : 'text-accent-error'}`}>
+              {previewResult.profitLoss >= 0 ? '+' : ''}{formatCurrency(previewResult.profitLoss)}{' '}
+              ({formatPercent(previewResult.profitLossPercent)})
+            </div>
+            {leverage > 1 && (
+              <div className="text-center text-xs text-text-tertiary mt-1">
+                Includes {leverage}x leverage on ${formatCurrency(trade.positionSize)} margin
+              </div>
+            )}
           </div>
         )}
 

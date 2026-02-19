@@ -15,6 +15,8 @@ interface GoalsContextType {
   goalRows: ReturnType<typeof generateGoalTable>;
   dailyGoals: DailyGoal[];
   updateDailyGoal: (date: string, actualPnL: number) => void;
+  startBalanceOverrides: Record<string, number>;
+  setStartBalanceOverride: (date: string, balance: number) => void;
 }
 
 const GoalsContext = createContext<GoalsContextType | undefined>(undefined);
@@ -29,6 +31,10 @@ export function GoalsProvider({ children }: { children: React.ReactNode }) {
     const stored = localStorage.getItem('mwt_daily_goals');
     return stored ? JSON.parse(stored) : [];
   });
+  const [startBalanceOverrides, setStartBalanceOverrides] = useState<Record<string, number>>(() => {
+    const stored = localStorage.getItem('mwt_balance_overrides');
+    return stored ? JSON.parse(stored) : {};
+  });
 
   useEffect(() => {
     localStorage.setItem('mwt_goal_settings', JSON.stringify(settings));
@@ -38,24 +44,36 @@ export function GoalsProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('mwt_daily_goals', JSON.stringify(dailyGoals));
   }, [dailyGoals]);
 
+  useEffect(() => {
+    localStorage.setItem('mwt_balance_overrides', JSON.stringify(startBalanceOverrides));
+  }, [startBalanceOverrides]);
+
   const updateSettings = (s: Partial<GoalSettings>) => {
     setSettings(prev => ({ ...prev, ...s }));
   };
 
-  const goalRows = generateGoalTable(settings.startingBalance, settings.dailyGoalPercent, settings.horizon);
+  const setStartBalanceOverride = (date: string, balance: number) => {
+    setStartBalanceOverrides(prev => ({ ...prev, [date]: balance }));
+  };
+
+  // Generate rows forward from today
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const goalRows = generateGoalTable(
+    settings.startingBalance,
+    settings.dailyGoalPercent,
+    settings.horizon,
+    startBalanceOverrides,
+    today
+  );
 
   const updateDailyGoal = (date: string, actualPnL: number) => {
-    const row = goalRows.find((_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - (settings.horizon - 1) + i);
-      return d.toISOString().split('T')[0] === date;
-    });
-    
+    const row = goalRows.find(r => r.date === date);
     if (!row) return;
-    
+
     const beatGoalBy = actualPnL - row.dailyGoalAmount;
     const status: DailyGoal['status'] = actualPnL >= row.dailyGoalAmount ? 'beat' : 'missed';
-    
+
     setDailyGoals(prev => {
       const existing = prev.findIndex(g => g.date === date);
       const newGoal: DailyGoal = {
@@ -76,7 +94,10 @@ export function GoalsProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <GoalsContext.Provider value={{ settings, updateSettings, goalRows, dailyGoals, updateDailyGoal }}>
+    <GoalsContext.Provider value={{
+      settings, updateSettings, goalRows, dailyGoals, updateDailyGoal,
+      startBalanceOverrides, setStartBalanceOverride,
+    }}>
       {children}
     </GoalsContext.Provider>
   );

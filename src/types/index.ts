@@ -26,8 +26,9 @@ export interface Trade {
   positionSize: number;
   valueTraded: number;
   token: string;
+  assetCategory: 'crypto' | 'stocks' | 'commodities' | 'forex';
   timeframe: '1hr' | '4hr' | 'daily' | 'weekly';
-  leverage: 1 | 2 | 5 | 10;
+  leverage: 1 | 2 | 3 | 5 | 10;
   cause: string;
   closePrice?: number;
   status: 'planned' | 'open' | 'closed' | 'tp_reached' | 'sl_hit';
@@ -67,6 +68,7 @@ export interface CalculatorState {
   riskValue: string;
   entryPrice: string;
   stopLoss: string;
+  takeProfit: string;
   direction: 'long' | 'short';
   riskReward: string;
 }
@@ -77,4 +79,5 @@ export interface CalculatorResults {
   potentialProfit: number;
   riskPercent: number;
   takeProfitPrice: number;
+  actualRiskReward: string;
 }

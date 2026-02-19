@@ -5,11 +5,12 @@ export function calculateTrade(state: CalculatorState): CalculatorResults | null
   const entryPrice = parseFloat(state.entryPrice);
   const stopLossPrice = parseFloat(state.stopLoss);
   const riskValue = parseFloat(state.riskValue);
+  const manualTP = state.takeProfit ? parseFloat(state.takeProfit) : NaN;
 
   if (!accountBalance || !entryPrice || !stopLossPrice || !riskValue) return null;
   if (entryPrice === stopLossPrice) return null;
 
-  const priceDiff = Math.abs(entryPrice - stopLossPrice);
+  const riskDistance = Math.abs(entryPrice - stopLossPrice);
 
   let riskPercent: number;
   let riskDollar: number;
@@ -22,20 +23,31 @@ export function calculateTrade(state: CalculatorState): CalculatorResults | null
     riskPercent = (riskValue / accountBalance) * 100;
   }
 
-  const positionSize = riskDollar / priceDiff;
-
-  const rrParts = state.riskReward.split(':');
-  const rewardMultiplier = rrParts.length === 2 ? parseFloat(rrParts[1]) / parseFloat(rrParts[0]) : 2;
-
-  const potentialLoss = positionSize * priceDiff;
-  const potentialProfit = potentialLoss * rewardMultiplier;
+  const positionSize = riskDollar / riskDistance;
+  const potentialLoss = positionSize * riskDistance;
 
   let takeProfitPrice: number;
-  if (state.direction === 'long') {
-    takeProfitPrice = entryPrice + priceDiff * rewardMultiplier;
+  let rewardDistance: number;
+  let actualRiskReward: string;
+
+  if (!isNaN(manualTP) && manualTP > 0) {
+    // User provided TP — calculate actual R:R from it
+    takeProfitPrice = manualTP;
+    rewardDistance = Math.abs(manualTP - entryPrice);
+    const rrRatio = rewardDistance / riskDistance;
+    actualRiskReward = `1:${rrRatio.toFixed(1)}`;
   } else {
-    takeProfitPrice = entryPrice - priceDiff * rewardMultiplier;
+    // No TP — derive from selected R:R preset
+    const rrParts = state.riskReward.split(':');
+    const rewardMultiplier = rrParts.length === 2 ? parseFloat(rrParts[1]) / parseFloat(rrParts[0]) : 3;
+    rewardDistance = riskDistance * rewardMultiplier;
+    takeProfitPrice = state.direction === 'long'
+      ? entryPrice + rewardDistance
+      : entryPrice - rewardDistance;
+    actualRiskReward = state.riskReward;
   }
+
+  const potentialProfit = positionSize * rewardDistance;
 
   return {
     positionSize,
@@ -43,6 +55,7 @@ export function calculateTrade(state: CalculatorState): CalculatorResults | null
     potentialProfit,
     riskPercent,
     takeProfitPrice,
+    actualRiskReward,
   };
 }
 
@@ -50,15 +63,16 @@ export function calculateTradeResult(
   direction: 'long' | 'short',
   entryPrice: number,
   closePrice: number,
-  positionSize: number
+  positionSize: number,
+  leverage: number = 1
 ) {
-  let profitLoss: number;
-  if (direction === 'long') {
-    profitLoss = (closePrice - entryPrice) * positionSize;
-  } else {
-    profitLoss = (entryPrice - closePrice) * positionSize;
-  }
-  const profitLossPercent = (profitLoss / (entryPrice * positionSize)) * 100;
+  // positionSize = dollar margin; leverage amplifies the effective position
+  const priceChangePct = direction === 'long'
+    ? (closePrice - entryPrice) / entryPrice
+    : (entryPrice - closePrice) / entryPrice;
+
+  const profitLoss = priceChangePct * positionSize * leverage;
+  const profitLossPercent = priceChangePct * leverage * 100;
   const winLoss: 'win' | 'loss' = profitLoss >= 0 ? 'win' : 'loss';
   return { profitLoss, profitLossPercent, winLoss };
 }
@@ -74,15 +88,27 @@ export function compoundBalance(startBalance: number, dailyPercent: number, days
 export function generateGoalTable(
   startingBalance: number,
   dailyGoalPercent: number,
-  days: number
+  days: number,
+  overrides: Record<string, number> = {},
+  startDate: Date = new Date()
 ) {
   const rows = [];
   let balance = startingBalance;
   for (let i = 0; i < days; i++) {
+    const d = new Date(startDate);
+    d.setDate(d.getDate() + i);
+    const dateStr = d.toISOString().split('T')[0];
+
+    // Apply balance override for this date if set
+    if (overrides[dateStr] !== undefined) {
+      balance = overrides[dateStr];
+    }
+
     const dailyGoalAmount = balance * (dailyGoalPercent / 100);
     const expectedEnd = balance + dailyGoalAmount;
     rows.push({
       day: i + 1,
+      date: dateStr,
       startingBalance: balance,
       dailyGoalAmount,
       expectedEndingBalance: expectedEnd,
