@@ -28,7 +28,7 @@ export interface Trade {
   token: string;
   assetCategory: 'crypto' | 'stocks' | 'commodities' | 'forex';
   timeframe: '1hr' | '4hr' | 'daily' | 'weekly';
-  leverage: 1 | 2 | 3 | 5 | 10;
+  leverage: number;
   cause: string;
   closePrice?: number;
   status: 'planned' | 'open' | 'closed' | 'tp_reached' | 'sl_hit';
@@ -62,10 +62,15 @@ export interface BlogPost {
   slug: string;
 }
 
+export type CurrencyCode = 'USD' | 'BTC' | 'EUR' | 'GBP';
+
 export interface CalculatorState {
+  assetName: string;
+  currency: CurrencyCode;
   accountBalance: string;
   riskType: 'percent' | 'dollar';
-  riskValue: string;
+  riskValue: string;          // trade size / amount risked
+  leverage: string;           // 1–100 (stored as string for input binding)
   entryPrice: string;
   stopLoss: string;
   takeProfit: string;
@@ -74,10 +79,16 @@ export interface CalculatorState {
 }
 
 export interface CalculatorResults {
-  positionSize: number;
-  potentialLoss: number;
+  tradeSize: number;          // dollar margin the user is putting up
+  effectivePosition: number;  // tradeSize × leverage (actual market exposure)
+  positionSize: number;       // alias of effectivePosition (kept for journal compat)
   potentialProfit: number;
+  potentialLoss: number;
   riskPercent: number;
+  entryPrice: number;
   takeProfitPrice: number;
+  stopLossPrice: number;
   actualRiskReward: string;
+  newBalanceIfTP: number;
+  newBalanceIfSL: number;
 }
