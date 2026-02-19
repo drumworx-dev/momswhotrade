@@ -5,6 +5,7 @@ import { ArticleReader } from './ArticleReader';
 import { mockPosts } from '../../utils/mockData';
 import { useAuth } from '../../context/AuthContext';
 import { GHOST_CONFIG } from '../../config/ghost';
+import { useLoginStreak } from '../../hooks/useLoginStreak';
 import type { BlogPost } from '../../types';
 
 interface GhostPost {
@@ -51,6 +52,7 @@ export function BlogFeed() {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
   const { user, signOut } = useAuth();
+  const streak = useLoginStreak();
 
   useEffect(() => {
     if (!GHOST_CONFIG.key) return;
@@ -117,6 +119,27 @@ export function BlogFeed() {
             )}
           </button>
         </div>
+
+        {/* Consistency streak banner */}
+        {(() => {
+          const bgClass  = streak.color === 'green' ? 'bg-emerald-50'  : streak.color === 'yellow' ? 'bg-yellow-50'  : 'bg-red-50';
+          const dotClass = streak.color === 'green' ? 'bg-emerald-500' : streak.color === 'yellow' ? 'bg-yellow-500' : 'bg-red-500';
+          const txtClass = streak.color === 'green' ? 'text-emerald-600' : streak.color === 'yellow' ? 'text-yellow-600' : 'text-red-600';
+          return (
+            <div className={`flex items-center gap-2 px-3 py-2 rounded-xl mb-2.5 ${bgClass}`}>
+              <div className={`w-2 h-2 rounded-full flex-shrink-0 ${dotClass}`} />
+              <span className="text-xs font-medium text-text-secondary">Consistency is key</span>
+              <div className="flex gap-0.5 ml-1">
+                {Array.from({ length: streak.denominator }, (_, i) => (
+                  <div key={i} className={`w-1.5 h-1.5 rounded-full ${i < streak.activeDays ? dotClass : 'bg-gray-200'}`} />
+                ))}
+              </div>
+              <span className={`ml-auto text-xs font-bold ${txtClass}`}>
+                {streak.activeDays}/{streak.denominator} days
+              </span>
+            </div>
+          );
+        })()}
 
         {/* Tabs — one per tag, pulled dynamically from Ghost */}
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">

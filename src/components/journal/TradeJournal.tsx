@@ -74,7 +74,7 @@ export function TradeJournal() {
         <div className="flex items-center justify-between mb-3">
           <div>
             <h1 className="text-xl font-bold text-text-primary">Trade Journal</h1>
-            <p className="text-text-secondary text-sm">Track your paper trades</p>
+            <p className="text-text-secondary text-sm">Track your way to success</p>
           </div>
           <button
             onClick={() => setShowNewTrade(true)}

@@ -31,8 +31,18 @@ const toJournalTimeframe = (tf: string): '1hr' | '4hr' | 'daily' | 'weekly' => {
   return '1hr'; // 15M and 1H both map to 1hr
 };
 
+type AssetCategory = 'crypto' | 'stocks' | 'commodities' | 'forex';
+
+const ASSET_CATEGORIES: { value: AssetCategory; label: string; emoji: string }[] = [
+  { value: 'crypto',      label: 'Crypto',      emoji: '₿' },
+  { value: 'stocks',      label: 'Stocks',      emoji: '📈' },
+  { value: 'commodities', label: 'Commodities', emoji: '🛢️' },
+  { value: 'forex',       label: 'Forex',       emoji: '💱' },
+];
+
 const DEFAULT: CalculatorState = {
   assetName:      '',
+  assetCategory:  'crypto',
   currency:       'USD',
   accountBalance: '',
   riskType:       'dollar',
@@ -95,8 +105,9 @@ function buildPDFHtml(state: CalculatorState, r: CalculatorResults): string {
     'th{text-align:left;padding:10px 14px;background:#f7f7f7;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#999}' +
     'td{padding:12px 14px;border-bottom:1px solid #f7f7f7}' +
     '.footer{margin-top:48px;text-align:center;font-size:11px;color:#ccc;border-top:1px solid #f0f0f0;padding-top:20px}' +
-    '@media print{body{padding:20px}}' +
+    '@media print{body{padding:20px}.no-print{display:none!important}}' +
     '</style></head><body>' +
+    '<button class="no-print" onclick="window.close()" title="Close" style="position:fixed;bottom:24px;right:24px;width:48px;height:48px;border-radius:50%;background:#1a1a1a;color:#fff;border:none;font-size:22px;line-height:1;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.25);z-index:999;display:flex;align-items:center;justify-content:center;">✕</button>' +
     '<h1>Trade Report</h1>' +
     '<div class="sub">' + (state.assetName || 'Unnamed Asset') + ' &middot; ' + state.direction.toUpperCase() + ' &middot; ' + now + '</div>' +
     '<div class="headline">' +
@@ -214,7 +225,7 @@ export function TradingCalculator() {
       positionSize:  results.tradeSize,
       valueTraded:   results.effectivePosition,
       token:         state.assetName || '',
-      assetCategory: 'crypto',
+      assetCategory: state.assetCategory,
       timeframe:     toJournalTimeframe(state.timeframe),
       leverage:      levNum,
       cause:         '',
@@ -255,6 +266,26 @@ export function TradingCalculator() {
                 value={state.assetName}
                 onChange={e => update('assetName', e.target.value)}
               />
+
+              {/* Asset Category */}
+              <div>
+                <label className="block text-sm font-medium text-text-secondary mb-1.5">Category</label>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {ASSET_CATEGORIES.map(cat => (
+                    <button
+                      key={cat.value}
+                      onClick={() => update('assetCategory', cat.value)}
+                      className={`py-2 rounded-pill text-xs font-semibold border transition-all ${
+                        state.assetCategory === cat.value
+                          ? 'bg-text-primary text-white border-text-primary'
+                          : 'bg-white border-gray-200 text-text-secondary hover:border-gray-400'
+                      }`}
+                    >
+                      {cat.emoji} {cat.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               {/* Currency */}
               <div>

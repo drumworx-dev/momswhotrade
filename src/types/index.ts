@@ -67,6 +67,7 @@ export type CurrencyCode = 'USD' | 'BTC' | 'EUR' | 'GBP';
 
 export interface CalculatorState {
   assetName: string;
+  assetCategory: 'crypto' | 'stocks' | 'commodities' | 'forex';
   currency: CurrencyCode;
   accountBalance: string;
   riskType: 'percent' | 'dollar';
