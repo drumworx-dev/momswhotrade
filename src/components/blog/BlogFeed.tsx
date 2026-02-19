@@ -1,18 +1,70 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { BlogCard } from './BlogCard';
 import { mockPosts } from '../../utils/mockData';
 import { useAuth } from '../../context/AuthContext';
+import { GHOST_CONFIG } from '../../config/ghost';
+import type { BlogPost } from '../../types';
 
-const tabs = ['Latest', 'Beginners Guide', 'Trade Ideas'];
+interface GhostPost {
+  id: string;
+  title: string;
+  custom_excerpt: string | null;
+  excerpt: string | null;
+  feature_image: string | null;
+  tags: Array<{ name: string }>;
+  reading_time: number;
+  primary_author: { name: string };
+  published_at: string;
+  slug: string;
+}
+
+async function fetchGhostPosts(): Promise<BlogPost[]> {
+  const { url, key } = GHOST_CONFIG;
+  if (!key) return [];
+
+  const res = await fetch(
+    `${url}/ghost/api/content/posts/?key=${key}&include=tags,authors&limit=all&order=published_at%20desc`
+  );
+  if (!res.ok) throw new Error(`Ghost API error: ${res.status}`);
+
+  const data = await res.json();
+  return (data.posts as GhostPost[]).map((p) => ({
+    id: p.id,
+    title: p.title,
+    excerpt: p.custom_excerpt || p.excerpt || '',
+    feature_image: p.feature_image || 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=800&q=80',
+    tag: p.tags?.[0]?.name || 'General',
+    reading_time: p.reading_time,
+    author: p.primary_author?.name || 'Mel',
+    published_at: p.published_at,
+    slug: p.slug,
+  }));
+}
 
 export function BlogFeed() {
   const [activeTab, setActiveTab] = useState('Latest');
+  const [posts, setPosts] = useState<BlogPost[]>(mockPosts);
+  const [tabs, setTabs] = useState<string[]>(['Latest']);
+  const [loading, setLoading] = useState(!!GHOST_CONFIG.key);
   const { user, signOut } = useAuth();
 
-  const filtered = activeTab === 'Latest'
-    ? mockPosts
-    : mockPosts.filter(p => p.tag === activeTab);
+  useEffect(() => {
+    if (!GHOST_CONFIG.key) return;
+
+    fetchGhostPosts()
+      .then((fetched) => {
+        if (fetched.length === 0) return;
+        setPosts(fetched);
+        const uniqueTags = Array.from(new Set(fetched.map((p) => p.tag)));
+        setTabs(['Latest', ...uniqueTags]);
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filtered =
+    activeTab === 'Latest' ? posts : posts.filter((p) => p.tag === activeTab);
 
   return (
     <div className="flex flex-col h-full">
@@ -42,9 +94,9 @@ export function BlogFeed() {
           </button>
         </div>
 
-        {/* Tabs */}
+        {/* Tabs — one per tag, pulled dynamically from Ghost */}
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-          {tabs.map(tab => (
+          {tabs.map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -62,32 +114,32 @@ export function BlogFeed() {
 
       {/* Feed */}
       <div className="flex-1 overflow-y-auto bg-bg-primary px-4 py-4 pb-24">
-        <div className="flex flex-col gap-4 max-w-lg mx-auto">
-          {filtered.map((post, i) => (
-            <motion.div
-              key={post.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.05 }}
-            >
-              <BlogCard post={post} />
-            </motion.div>
-          ))}
-
-          {filtered.length === 0 && (
-            <div className="text-center py-16 text-text-secondary">
-              <div className="text-4xl mb-3">📝</div>
-              <p>No posts in this category yet</p>
-            </div>
-          )}
-
-          {/* Ghost API Notice */}
-          <div className="bg-white rounded-card p-4 shadow-sm mt-2">
-            <p className="text-center text-xs text-text-tertiary">
-              📡 Connect Ghost CMS API for live posts from momswhotrade.co
-            </p>
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-3">
+            <div className="w-8 h-8 border-4 border-accent-primary border-t-transparent rounded-full animate-spin" />
+            <p className="text-text-secondary text-sm">Loading posts...</p>
           </div>
-        </div>
+        ) : (
+          <div className="flex flex-col gap-4 max-w-lg mx-auto">
+            {filtered.map((post, i) => (
+              <motion.div
+                key={post.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.05 }}
+              >
+                <BlogCard post={post} />
+              </motion.div>
+            ))}
+
+            {filtered.length === 0 && (
+              <div className="text-center py-16 text-text-secondary">
+                <div className="text-4xl mb-3">📝</div>
+                <p>No posts in this category yet</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
