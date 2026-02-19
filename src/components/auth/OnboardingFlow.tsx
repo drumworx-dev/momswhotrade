@@ -16,8 +16,8 @@ export function OnboardingFlow() {
 
   const projection30 = compoundBalance(1000, dailyPercent, 30) - 1000;
 
-  const handleComplete = () => {
-    updateUserProfile({
+  const handleComplete = async () => {
+    await updateUserProfile({
       experience,
       monthlyGoal: parseFloat(monthlyGoal) || 1000,
       dailyProfitGoalPercent: dailyPercent,
