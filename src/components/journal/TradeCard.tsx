@@ -14,6 +14,13 @@ const statusEmoji: Record<string, string> = {
   sl_hit: '🛑',
 };
 
+const categoryBadge: Record<Trade['assetCategory'], { label: string; bg: string; text: string }> = {
+  crypto: { label: '₿ Crypto', bg: 'bg-orange-50', text: 'text-orange-500' },
+  stocks: { label: '📈 Stocks', bg: 'bg-blue-50', text: 'text-blue-500' },
+  commodities: { label: '🛢️ Commodities', bg: 'bg-yellow-50', text: 'text-yellow-600' },
+  forex: { label: '💱 Forex', bg: 'bg-purple-50', text: 'text-purple-500' },
+};
+
 export function TradeCard({ trade, onClick }: TradeCardProps) {
   const isOpen = trade.status === 'open';
   const isClosed = ['closed', 'tp_reached', 'sl_hit'].includes(trade.status);
@@ -21,6 +28,8 @@ export function TradeCard({ trade, onClick }: TradeCardProps) {
   const isLoss = trade.winLoss === 'loss';
 
   const pnlColor = isWin ? 'text-accent-success' : isLoss ? 'text-accent-error' : 'text-text-secondary';
+  const cat = trade.assetCategory || 'crypto';
+  const badge = categoryBadge[cat];
 
   return (
     <div
@@ -29,12 +38,15 @@ export function TradeCard({ trade, onClick }: TradeCardProps) {
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="font-bold text-text-primary">{trade.token || 'Unknown'}</span>
           <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
             trade.direction === 'long' ? 'bg-green-50 text-accent-success' : 'bg-red-50 text-accent-error'
           }`}>
             {trade.direction?.toUpperCase()}
+          </span>
+          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${badge.bg} ${badge.text}`}>
+            {badge.label}
           </span>
           <span className="text-xs text-text-tertiary">{trade.timeframe}</span>
         </div>

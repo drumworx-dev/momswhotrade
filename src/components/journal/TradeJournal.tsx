@@ -8,20 +8,36 @@ import { NewTradeModal } from './NewTradeModal';
 import { useTrades } from '../../context/TradesContext';
 import { useAuth } from '../../context/AuthContext';
 
-const filterTabs = ['All', 'Open', 'Closed', 'Wins', 'Losses'] as const;
-type FilterTab = typeof filterTabs[number];
+type AssetCategory = Trade['assetCategory'];
+const CATEGORIES: AssetCategory[] = ['crypto', 'stocks', 'commodities', 'forex'];
+const CATEGORY_LABELS: Record<AssetCategory, string> = {
+  crypto: 'Crypto',
+  stocks: 'Stocks',
+  commodities: 'Commodities',
+  forex: 'Forex',
+};
 
+const statusFilterTabs = ['All', 'Open', 'Closed', 'Wins', 'Losses'] as const;
+type StatusFilter = typeof statusFilterTabs[number];
+
+function categoryWinRate(trades: Trade[], cat: AssetCategory) {
+  const catTrades = trades.filter(t => t.assetCategory === cat && t.winLoss);
+  if (catTrades.length === 0) return null;
+  const wins = catTrades.filter(t => t.winLoss === 'win').length;
+  return { winRate: Math.round((wins / catTrades.length) * 100), count: catTrades.length };
+}
 
 export function TradeJournal() {
   const { trades } = useTrades();
   useAuth();
-  const [activeFilter, setActiveFilter] = useState<FilterTab>('All');
-  const [sortBy] = useState('newest');
+  const [activeFilter, setActiveFilter] = useState<StatusFilter>('All');
+  const [activeCategory, setActiveCategory] = useState<AssetCategory | 'all'>('all');
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
   const [showNewTrade, setShowNewTrade] = useState(false);
 
   const filtered = trades
     .filter(t => {
+      if (activeCategory !== 'all' && t.assetCategory !== activeCategory) return false;
       if (activeFilter === 'Open') return t.status === 'open';
       if (activeFilter === 'Closed') return ['closed', 'tp_reached', 'sl_hit'].includes(t.status);
       if (activeFilter === 'Wins') return t.winLoss === 'win';
@@ -31,17 +47,25 @@ export function TradeJournal() {
     .sort((a, b) => {
       const aDate = a.createdAt?.toDate?.() || new Date(0);
       const bDate = b.createdAt?.toDate?.() || new Date(0);
-      if (sortBy === 'newest') return bDate.getTime() - aDate.getTime();
-      if (sortBy === 'oldest') return aDate.getTime() - bDate.getTime();
-      if (sortBy === 'best') return (b.profitLoss || 0) - (a.profitLoss || 0);
-      if (sortBy === 'worst') return (a.profitLoss || 0) - (b.profitLoss || 0);
-      return 0;
+      return bDate.getTime() - aDate.getTime();
     });
 
   const totalPnL = trades.filter(t => t.profitLoss !== undefined).reduce((sum, t) => sum + (t.profitLoss || 0), 0);
   const wins = trades.filter(t => t.winLoss === 'win').length;
   const total = trades.filter(t => t.winLoss).length;
   const winRate = total > 0 ? Math.round((wins / total) * 100) : 0;
+
+  // Best / worst category by win rate
+  const categoryStats = CATEGORIES
+    .map(cat => ({ cat, stats: categoryWinRate(trades, cat) }))
+    .filter(x => x.stats !== null) as { cat: AssetCategory; stats: { winRate: number; count: number } }[];
+
+  const bestCat = categoryStats.length > 0
+    ? categoryStats.reduce((best, x) => x.stats.winRate > best.stats.winRate ? x : best)
+    : null;
+  const worstCat = categoryStats.length > 0
+    ? categoryStats.reduce((worst, x) => x.stats.winRate < worst.stats.winRate ? x : worst)
+    : null;
 
   return (
     <div className="flex flex-col h-full bg-bg-primary">
@@ -78,9 +102,58 @@ export function TradeJournal() {
           </div>
         </div>
 
-        {/* Filter tabs */}
+        {/* Best / Worst category badges */}
+        {(bestCat || worstCat) && (
+          <div className="flex gap-2 mb-3">
+            {bestCat && (
+              <div className="flex-1 bg-green-50 border border-green-100 rounded-card px-3 py-2">
+                <div className="text-xs text-text-tertiary mb-0.5">Best category</div>
+                <div className="font-semibold text-accent-success text-sm">
+                  {CATEGORY_LABELS[bestCat.cat]} — {bestCat.stats.winRate}% WR
+                </div>
+              </div>
+            )}
+            {worstCat && bestCat?.cat !== worstCat.cat && (
+              <div className="flex-1 bg-red-50 border border-red-100 rounded-card px-3 py-2">
+                <div className="text-xs text-text-tertiary mb-0.5">Needs work</div>
+                <div className="font-semibold text-accent-error text-sm">
+                  {CATEGORY_LABELS[worstCat.cat]} — {worstCat.stats.winRate}% WR
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Category tabs */}
+        <div className="flex gap-2 overflow-x-auto pb-1 mb-2">
+          <button
+            onClick={() => setActiveCategory('all')}
+            className={`flex-none px-3 py-1.5 rounded-pill text-xs font-medium transition-all ${
+              activeCategory === 'all'
+                ? 'bg-text-primary text-white'
+                : 'bg-surface-dim text-text-secondary hover:bg-bg-secondary'
+            }`}
+          >
+            All
+          </button>
+          {CATEGORIES.map(cat => (
+            <button
+              key={cat}
+              onClick={() => setActiveCategory(cat)}
+              className={`flex-none px-3 py-1.5 rounded-pill text-xs font-medium transition-all ${
+                activeCategory === cat
+                  ? 'bg-text-primary text-white'
+                  : 'bg-surface-dim text-text-secondary hover:bg-bg-secondary'
+              }`}
+            >
+              {CATEGORY_LABELS[cat]}
+            </button>
+          ))}
+        </div>
+
+        {/* Status filter tabs */}
         <div className="flex gap-2 overflow-x-auto pb-1">
-          {filterTabs.map(tab => (
+          {statusFilterTabs.map(tab => (
             <button
               key={tab}
               onClick={() => setActiveFilter(tab)}
