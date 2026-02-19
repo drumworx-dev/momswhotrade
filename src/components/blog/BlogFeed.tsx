@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { BlogCard } from './BlogCard';
+import { ArticleReader } from './ArticleReader';
 import { mockPosts } from '../../utils/mockData';
 import { useAuth } from '../../context/AuthContext';
 import { GHOST_CONFIG } from '../../config/ghost';
@@ -48,6 +49,7 @@ export function BlogFeed() {
   const [tabs, setTabs] = useState<string[]>(['Latest']);
   const [loading, setLoading] = useState(!!GHOST_CONFIG.key);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
   const { user, signOut } = useAuth();
 
   useEffect(() => {
@@ -69,6 +71,20 @@ export function BlogFeed() {
 
   return (
     <div className="flex flex-col h-full">
+      {/* In-app article reader overlay */}
+      <AnimatePresence>
+        {selectedPost && (
+          <motion.div
+            initial={{ x: '100%' }}
+            animate={{ x: 0 }}
+            exit={{ x: '100%' }}
+            transition={{ type: 'tween', duration: 0.25 }}
+            className="fixed inset-0 z-50"
+          >
+            <ArticleReader post={selectedPost} onClose={() => setSelectedPost(null)} />
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* Header */}
       <div className="bg-white px-4 pt-6 pb-3 sticky top-0 z-30 shadow-sm">
         <div className="flex items-center justify-between mb-3">
@@ -166,7 +182,7 @@ export function BlogFeed() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.05 }}
               >
-                <BlogCard post={post} />
+                <BlogCard post={post} onClick={() => setSelectedPost(post)} />
               </motion.div>
             ))}
 

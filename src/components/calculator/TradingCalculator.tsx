@@ -51,6 +51,20 @@ function getSym(code: CurrencyCode) {
   return CURRENCIES.find(c => c.code === code)?.sym ?? '$';
 }
 
+/** Format a raw number string with thousand-comma separators */
+function displayNum(raw: string): string {
+  if (!raw) return raw;
+  const stripped = raw.replace(/,/g, '');
+  const [int, dec] = stripped.split('.');
+  const formatted = (int || '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return dec !== undefined ? `${formatted}.${dec}` : formatted;
+}
+
+/** Strip commas before storing in state */
+function rawNum(v: string): string {
+  return v.replace(/,/g, '');
+}
+
 function fmtAmt(n: number, sym: string, dec = 2): string {
   if (!isFinite(n)) return sym + '0.00';
   return sym + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
@@ -114,11 +128,12 @@ function buildPDFHtml(state: CalculatorState, r: CalculatorResults): string {
 
 // ─── component ─────────────────────────────────────────────────────────────
 export function TradingCalculator() {
-  const [state, setState]     = useState<CalculatorState>(DEFAULT);
-  const [results, setResults] = useState<CalculatorResults | null>(null);
-  const { addTrade }          = useTrades();
-  const { user }              = useAuth();
-  const resultsRef            = useRef<HTMLDivElement>(null);
+  const [state, setState]       = useState<CalculatorState>(DEFAULT);
+  const [results, setResults]   = useState<CalculatorResults | null>(null);
+  const [tpUserEdited, setTpUserEdited] = useState(false);
+  const { addTrade }            = useTrades();
+  const { user }                = useAuth();
+  const resultsRef              = useRef<HTMLDivElement>(null);
 
   const sym     = getSym(state.currency);
   const acct    = parseFloat(state.accountBalance) || 0;
@@ -131,11 +146,40 @@ export function TradingCalculator() {
     ? acct * (tradeSizePct / 100)
     : parseFloat(state.riskValue) || 0;
 
-  const hasManualTP   = state.takeProfit !== '' && !isNaN(parseFloat(state.takeProfit));
-  const hasEntryPrice = state.entryPrice !== '' && !isNaN(parseFloat(state.entryPrice));
+  const hasEntryAndSL = state.entryPrice !== '' && !isNaN(parseFloat(state.entryPrice))
+    && state.stopLoss !== '' && !isNaN(parseFloat(state.stopLoss));
+  const hasTP = state.takeProfit !== '' && !isNaN(parseFloat(state.takeProfit));
+
+  // Compute actual R:R from entry / SL / TP when all three are present
+  const computedRR: number | null = hasEntryAndSL && hasTP ? (() => {
+    const entry  = parseFloat(state.entryPrice);
+    const sl     = parseFloat(state.stopLoss);
+    const tp     = parseFloat(state.takeProfit);
+    const risk   = Math.abs(entry - sl);
+    const reward = Math.abs(tp - entry);
+    return risk > 0 ? reward / risk : null;
+  })() : null;
+  const rrWarning = computedRR !== null && computedRR < 3;
 
   const update = (key: keyof CalculatorState, value: string) => {
     setState(prev => ({ ...prev, [key]: value }));
+    setResults(null);
+  };
+
+  /** Tapping an R:R preset auto-calculates and fills in the Take Profit */
+  const handleRRClick = (rr: string) => {
+    const entry = parseFloat(state.entryPrice);
+    const sl    = parseFloat(state.stopLoss);
+    if (!entry || !sl || entry === sl) {
+      update('riskReward', rr);
+      return;
+    }
+    const parts   = rr.split(':');
+    const mult    = parseFloat(parts[1]) / parseFloat(parts[0]);
+    const slDist  = Math.abs(entry - sl);
+    const tp      = state.direction === 'long' ? entry + slDist * mult : entry - slDist * mult;
+    setTpUserEdited(false);
+    setState(prev => ({ ...prev, riskReward: rr, takeProfit: tp.toFixed(2) }));
     setResults(null);
   };
 
@@ -236,10 +280,10 @@ export function TradingCalculator() {
               <Input
                 label="Account Size"
                 prefix={sym}
-                type="number"
+                type="text"
                 placeholder="10,000"
-                value={state.accountBalance}
-                onChange={e => update('accountBalance', e.target.value)}
+                value={displayNum(state.accountBalance)}
+                onChange={e => update('accountBalance', rawNum(e.target.value))}
                 inputMode="decimal"
               />
 
@@ -264,9 +308,9 @@ export function TradingCalculator() {
                     ))}
                   </div>
                   <input
-                    type="number"
-                    value={state.riskValue}
-                    onChange={e => update('riskValue', e.target.value)}
+                    type="text"
+                    value={displayNum(state.riskValue)}
+                    onChange={e => update('riskValue', rawNum(e.target.value))}
                     className="flex-1 bg-surface-dim border border-gray-200 rounded-input px-4 py-2.5 text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary"
                     placeholder={state.riskType === 'percent' ? '5' : '500'}
                     inputMode="decimal"
@@ -338,37 +382,28 @@ export function TradingCalculator() {
                 </div>
               </div>
 
-              {/* Entry / SL / TP */}
-              <Input label="Entry Price" prefix={sym} type="number" placeholder="45,000"
-                value={state.entryPrice} onChange={e => update('entryPrice', e.target.value)} inputMode="decimal" />
+              {/* Entry / SL */}
+              <Input label="Entry Price" prefix={sym} type="text" placeholder="45,000"
+                value={displayNum(state.entryPrice)} onChange={e => update('entryPrice', rawNum(e.target.value))} inputMode="decimal" />
 
-              <Input label="Stop Loss" prefix={sym} type="number" placeholder="43,000"
-                value={state.stopLoss} onChange={e => update('stopLoss', e.target.value)} inputMode="decimal" />
+              <Input label="Stop Loss" prefix={sym} type="text" placeholder="43,000"
+                value={displayNum(state.stopLoss)} onChange={e => update('stopLoss', rawNum(e.target.value))} inputMode="decimal" />
 
-              <Input label="Take Profit" prefix={sym} type="number" placeholder="55,000 (optional)"
-                value={state.takeProfit} onChange={e => update('takeProfit', e.target.value)} inputMode="decimal" />
-
-              {/* Quick R:R presets */}
-              {hasEntryPrice && (
+              {/* Quick R:R presets — ABOVE take profit so they can auto-fill it */}
+              {hasEntryAndSL && (
                 <div>
                   <div className="flex items-center gap-1.5 mb-2">
-                    <label className={`text-sm font-medium ${hasManualTP ? 'text-text-tertiary' : 'text-text-secondary'}`}>
-                      Quick Risk/Reward Ratios
-                    </label>
-                    {hasManualTP
-                      ? <span className="text-xs text-text-tertiary italic">(overridden by your Take Profit)</span>
-                      : <span className="text-xs text-text-tertiary flex items-center gap-0.5"><Info size={11} /> auto-sets TP</span>
-                    }
+                    <label className="text-sm font-medium text-text-secondary">Risk / Reward</label>
+                    <span className="text-xs text-text-tertiary flex items-center gap-0.5">
+                      <Info size={11} /> tap to auto-set Take Profit
+                    </span>
                   </div>
                   <div className="flex gap-2">
                     {RR_PRESETS.map(rr => (
                       <button key={rr}
-                        onClick={() => !hasManualTP && update('riskReward', rr)}
-                        disabled={hasManualTP}
+                        onClick={() => handleRRClick(rr)}
                         className={`flex-1 py-2.5 rounded-pill text-sm font-semibold border transition-all ${
-                          hasManualTP
-                            ? 'bg-surface-dim border-gray-100 text-text-tertiary cursor-not-allowed opacity-50'
-                            : state.riskReward === rr
+                          !tpUserEdited && state.riskReward === rr
                             ? 'bg-text-primary text-white border-text-primary'
                             : 'bg-white border-gray-200 text-text-secondary hover:border-gray-400'
                         }`}
@@ -377,8 +412,29 @@ export function TradingCalculator() {
                       </button>
                     ))}
                   </div>
+                  {/* Computed R:R warning / info */}
+                  {computedRR !== null && (
+                    <div className={`flex items-center gap-2 mt-2 rounded-lg px-3 py-2 text-sm ${
+                      rrWarning ? 'bg-orange-50 border border-accent-warning' : 'bg-emerald-50'
+                    }`}>
+                      {rrWarning && <AlertTriangle size={14} className="text-accent-warning flex-shrink-0" />}
+                      <span className={rrWarning ? 'text-text-secondary' : 'text-emerald-700'}>
+                        Actual R:R: <strong>1:{computedRR.toFixed(2)}</strong>
+                        {rrWarning && ' — consider aiming for at least 1:3'}
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
+
+              {/* Take Profit */}
+              <Input label="Take Profit" prefix={sym} type="text" placeholder="55,000 (optional)"
+                value={displayNum(state.takeProfit)}
+                onChange={e => {
+                  setTpUserEdited(true);
+                  update('takeProfit', rawNum(e.target.value));
+                }}
+                inputMode="decimal" />
             </div>
           </Card>
 
@@ -556,7 +612,7 @@ export function TradingCalculator() {
                     Save to Journal
                   </Button>
                   <button
-                    onClick={() => { setState(DEFAULT); setResults(null); }}
+                    onClick={() => { setState(DEFAULT); setResults(null); setTpUserEdited(false); }}
                     className="text-sm text-text-secondary hover:text-text-primary transition-colors py-2"
                   >
                     Clear

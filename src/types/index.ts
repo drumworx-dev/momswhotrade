@@ -31,6 +31,7 @@ export interface Trade {
   leverage: number;
   cause: string;
   closePrice?: number;
+  closedAt?: string; // ISO date string (YYYY-MM-DD) set when trade is closed
   status: 'planned' | 'open' | 'closed' | 'tp_reached' | 'sl_hit';
   profitLoss?: number;
   profitLossPercent?: number;

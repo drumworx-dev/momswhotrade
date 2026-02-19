@@ -3,16 +3,17 @@ import { formatDate } from '../../utils/formatters';
 
 interface BlogCardProps {
   post: BlogPost;
+  onClick?: () => void;
 }
 
-export function BlogCard({ post }: BlogCardProps) {
+export function BlogCard({ post, onClick }: BlogCardProps) {
   const tagColors: Record<string, string> = {
     'Beginners Guide': 'bg-bg-secondary text-accent-dark',
     'Trade Ideas': 'bg-green-50 text-accent-success',
   };
 
   return (
-    <div className="bg-white rounded-card shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow duration-200 active:scale-[0.99]">
+    <div onClick={onClick} className="bg-white rounded-card shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow duration-200 active:scale-[0.99]">
       {/* Image */}
       <div className="relative h-48 overflow-hidden">
         <img
