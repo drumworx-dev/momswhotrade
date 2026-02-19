@@ -64,6 +64,12 @@
   .safe-area-inset-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
+
+  /* Sticky page headers must clear the device notch/status bar.
+     viewport-fit=cover means content extends behind the notch — this corrects it. */
+  .page-header {
+    padding-top: max(1.5rem, calc(env(safe-area-inset-top, 0px) + 0.5rem));
+  }
 }
 
 @layer utilities {
