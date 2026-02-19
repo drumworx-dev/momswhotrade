@@ -23,6 +23,14 @@ const RR_PRESETS = ['1:3', '1:5', '1:10'];
 const LEVERAGE_PRESETS = ['1', '3', '5', '7', '10', '20'];
 const TIMEFRAME_PRESETS = ['15M', '1H', '4H', '1D', '1W'];
 
+// Map calculator timeframes to journal's allowed values
+const toJournalTimeframe = (tf: string): '1hr' | '4hr' | 'daily' | 'weekly' => {
+  if (tf === '4H') return '4hr';
+  if (tf === '1D') return 'daily';
+  if (tf === '1W') return 'weekly';
+  return '1hr'; // 15M and 1H both map to 1hr
+};
+
 const DEFAULT: CalculatorState = {
   assetName:      '',
   currency:       'USD',
@@ -163,7 +171,7 @@ export function TradingCalculator() {
       valueTraded:   results.effectivePosition,
       token:         state.assetName || '',
       assetCategory: 'crypto',
-      timeframe:     state.timeframe,
+      timeframe:     toJournalTimeframe(state.timeframe),
       leverage:      levNum,
       cause:         '',
       status,
