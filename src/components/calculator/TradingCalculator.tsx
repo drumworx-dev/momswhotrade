@@ -36,7 +36,7 @@ type AssetCategory = 'crypto' | 'stocks' | 'commodities' | 'forex';
 const ASSET_CATEGORIES: { value: AssetCategory; label: string; emoji: string }[] = [
   { value: 'crypto',      label: 'Crypto',      emoji: '₿' },
   { value: 'stocks',      label: 'Stocks',      emoji: '📈' },
-  { value: 'commodities', label: 'Commodities', emoji: '🛢️' },
+  { value: 'commodities', label: 'Commod.',     emoji: '🛢️' },
   { value: 'forex',       label: 'Forex',       emoji: '💱' },
 ];
 
@@ -262,7 +262,7 @@ export function TradingCalculator() {
         <p className="text-text-secondary text-sm">Size your position & visualise the trade</p>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 pb-40">
+      <div className="flex-1 overflow-y-auto px-4 py-4 pb-56">
         <div className="max-w-lg mx-auto flex flex-col gap-4">
 
           {/* ═══ SECTION: TRADE SETUP ══════════════════════════════════ */}
