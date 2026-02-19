@@ -7,6 +7,7 @@ interface GoalSettings {
   startingBalance: number;
   dailyGoalPercent: number;
   horizon: 30 | 60 | 90;
+  projectionStartDate: string; // ISO date string (YYYY-MM-DD) — set once when user first saves
 }
 
 interface GoalsContextType {
@@ -17,15 +18,20 @@ interface GoalsContextType {
   updateDailyGoal: (date: string, actualPnL: number) => void;
   startBalanceOverrides: Record<string, number>;
   setStartBalanceOverride: (date: string, balance: number) => void;
+  clearProjection: () => void;
+  projectionEndDate: Date | null;
 }
 
 const GoalsContext = createContext<GoalsContextType | undefined>(undefined);
+
+const todayISO = () => new Date().toISOString().split('T')[0];
 
 export function GoalsProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [settings, setSettings] = useState<GoalSettings>(() => {
     const stored = localStorage.getItem('mwt_goal_settings');
-    return stored ? JSON.parse(stored) : { startingBalance: 1000, dailyGoalPercent: 1, horizon: 30 };
+    const defaults = { startingBalance: 1000, dailyGoalPercent: 1, horizon: 30 as const, projectionStartDate: '' };
+    return stored ? { ...defaults, ...JSON.parse(stored) } : defaults;
   });
   const [dailyGoals, setDailyGoals] = useState<DailyGoal[]>(() => {
     const stored = localStorage.getItem('mwt_daily_goals');
@@ -49,23 +55,41 @@ export function GoalsProvider({ children }: { children: React.ReactNode }) {
   }, [startBalanceOverrides]);
 
   const updateSettings = (s: Partial<GoalSettings>) => {
-    setSettings(prev => ({ ...prev, ...s }));
+    setSettings(prev => {
+      // Lock in the start date the very first time the user saves their projection
+      const startDate = prev.projectionStartDate || s.projectionStartDate || todayISO();
+      return { ...prev, ...s, projectionStartDate: startDate };
+    });
   };
 
   const setStartBalanceOverride = (date: string, balance: number) => {
     setStartBalanceOverrides(prev => ({ ...prev, [date]: balance }));
   };
 
-  // Generate rows forward from today
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  // Reset everything so the user can start a new projection from today
+  const clearProjection = () => {
+    setSettings(prev => ({ ...prev, projectionStartDate: '' }));
+    setDailyGoals([]);
+    setStartBalanceOverrides({});
+    localStorage.removeItem('mwt_daily_goals');
+    localStorage.removeItem('mwt_balance_overrides');
+  };
+
+  // Generate rows from projectionStartDate (or today if not yet set)
+  const startDateStr = settings.projectionStartDate || todayISO();
+  const startDate = new Date(startDateStr + 'T00:00:00');
   const goalRows = generateGoalTable(
     settings.startingBalance,
     settings.dailyGoalPercent,
     settings.horizon,
     startBalanceOverrides,
-    today
+    startDate
   );
+
+  // Compute the end date for display ("by May 18th")
+  const projectionEndDate = goalRows.length > 0
+    ? new Date(goalRows[goalRows.length - 1].date + 'T00:00:00')
+    : null;
 
   const updateDailyGoal = (date: string, actualPnL: number) => {
     const row = goalRows.find(r => r.date === date);
@@ -96,7 +120,7 @@ export function GoalsProvider({ children }: { children: React.ReactNode }) {
   return (
     <GoalsContext.Provider value={{
       settings, updateSettings, goalRows, dailyGoals, updateDailyGoal,
-      startBalanceOverrides, setStartBalanceOverride,
+      startBalanceOverrides, setStartBalanceOverride, clearProjection, projectionEndDate,
     }}>
       {children}
     </GoalsContext.Provider>

@@ -7,7 +7,7 @@ import { Button } from '../shared/Button';
 import { toast } from 'react-hot-toast';
 
 export function GoalTracker() {
-  const { settings, updateSettings, goalRows, dailyGoals, updateDailyGoal, setStartBalanceOverride } = useGoals();
+  const { settings, updateSettings, goalRows, dailyGoals, updateDailyGoal, setStartBalanceOverride, clearProjection, projectionEndDate } = useGoals();
   const { trades } = useTrades();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [startBalance, setStartBalance] = useState(settings.startingBalance.toString());
@@ -71,7 +71,7 @@ export function GoalTracker() {
   return (
     <div className="flex flex-col h-full bg-bg-primary">
       {/* Header */}
-      <div className="bg-white px-4 pt-12 pb-4 sticky top-0 z-30 shadow-sm">
+      <div className="bg-white px-4 pt-6 pb-4 sticky top-0 z-30 shadow-sm">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-text-primary">Daily Goal Tracker</h1>
@@ -93,7 +93,12 @@ export function GoalTracker() {
           {/* ── PROJECTED OUTCOME — top of page for motivation ── */}
           <div className="bg-gradient-to-br from-text-primary to-gray-800 rounded-card shadow-md p-5 text-white">
             <div className="text-xs font-semibold uppercase tracking-wider opacity-60 mb-1">
-              Projected Outcome — {settings.horizon} days
+              {settings.horizon}-Day Projection
+              {projectionEndDate && (
+                <span className="ml-1 normal-case">
+                  — by {projectionEndDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
+                </span>
+              )}
             </div>
             <div className="text-3xl font-bold mb-1">{formatCurrency(projectedEnd)}</div>
             <div className="flex items-center gap-3 text-sm opacity-80">
@@ -101,8 +106,21 @@ export function GoalTracker() {
               <span>·</span>
               <span>{gainMultiple}× your money</span>
             </div>
-            <div className="mt-3 text-xs opacity-50">
-              Starting {formatCurrency(settings.startingBalance)} at {settings.dailyGoalPercent}% daily
+            <div className="mt-3 flex items-center justify-between">
+              <span className="text-xs opacity-50">
+                Starting {formatCurrency(settings.startingBalance)} at {settings.dailyGoalPercent}% daily
+              </span>
+              <button
+                onClick={() => {
+                  if (confirm('Clear your projection and start over from today?')) {
+                    clearProjection();
+                    toast.success('Projection cleared — save new settings to begin');
+                  }
+                }}
+                className="text-xs opacity-50 hover:opacity-100 transition-opacity underline ml-4 flex-shrink-0"
+              >
+                Start Over
+              </button>
             </div>
           </div>
 

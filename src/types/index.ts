@@ -70,12 +70,13 @@ export interface CalculatorState {
   accountBalance: string;
   riskType: 'percent' | 'dollar';
   riskValue: string;          // trade size / amount risked
-  leverage: string;           // 1–100 (stored as string for input binding)
+  leverage: string;           // stored as string for button binding
   entryPrice: string;
   stopLoss: string;
   takeProfit: string;
   direction: 'long' | 'short';
   riskReward: string;
+  timeframe: string;          // e.g. '15M', '1H', '4H', '1D', '1W'
 }
 
 export interface CalculatorResults {

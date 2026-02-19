@@ -1,11 +1,11 @@
-import { ExternalLink, MessageCircle } from 'lucide-react';
+import { ExternalLink, MessageCircle, Youtube, Instagram } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export function CommunityTab() {
   return (
     <div className="flex flex-col h-full bg-bg-primary">
       {/* Header */}
-      <div className="bg-white px-4 pt-12 pb-4 sticky top-0 z-30 shadow-sm">
+      <div className="bg-white px-4 pt-6 pb-4 sticky top-0 z-30 shadow-sm">
         <h1 className="text-xl font-bold text-text-primary">Community</h1>
         <p className="text-text-secondary text-sm">Connect with moms who trade</p>
       </div>
@@ -93,11 +93,44 @@ export function CommunityTab() {
             </a>
           </motion.div>
 
-          {/* Coming Soon */}
+          {/* Follow Us on Socials */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15 }}
+            className="bg-white rounded-card shadow-sm p-6"
+          >
+            <h2 className="text-lg font-bold text-text-primary mb-4">Follow Us</h2>
+            <div className="flex flex-col gap-3">
+              <a
+                href="https://www.youtube.com/@moms_who_trade"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 w-full bg-red-50 text-red-700 rounded-xl px-5 py-4 font-semibold hover:bg-red-100 transition-all"
+              >
+                <Youtube size={22} className="flex-shrink-0" />
+                <span className="flex-1">YouTube — @moms_who_trade</span>
+                <ExternalLink size={14} className="opacity-60" />
+              </a>
+              <a
+                href="https://www.instagram.com/moms_who_trade/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 w-full rounded-xl px-5 py-4 font-semibold transition-all"
+                style={{ background: 'linear-gradient(135deg, #fdf3f8 0%, #f0e8ff 100%)', color: '#9333ea' }}
+              >
+                <Instagram size={22} className="flex-shrink-0" />
+                <span className="flex-1">Instagram — @moms_who_trade</span>
+                <ExternalLink size={14} className="opacity-60" />
+              </a>
+            </div>
+          </motion.div>
+
+          {/* Coming Soon */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
             className="bg-surface-dim rounded-card p-5 text-center border-2 border-dashed border-gray-200"
           >
             <MessageCircle size={28} className="text-text-tertiary mx-auto mb-2" />

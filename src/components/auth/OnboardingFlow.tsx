@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Youtube, Instagram } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { Button } from '../shared/Button';
@@ -150,15 +151,36 @@ export function OnboardingFlow() {
         <h2 className="text-2xl font-bold text-text-primary mb-2">You're all set!</h2>
         <p className="text-text-secondary">Your personalized trading journey starts now</p>
       </div>
-      <a
-        href="https://t.me/+0_HXQIvTI5Y2YTQ0"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="w-full flex items-center justify-center gap-3 bg-white text-text-primary rounded-pill px-6 py-4 font-semibold shadow-sm hover:shadow-md transition-all min-h-[56px]"
-      >
-        <span className="text-xl">📱</span>
-        Join Our Free Telegram Community
-      </a>
+      <div className="w-full flex flex-col gap-3">
+        <a
+          href="https://t.me/+0_HXQIvTI5Y2YTQ0"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-full flex items-center justify-center gap-3 bg-white text-text-primary rounded-pill px-6 py-4 font-semibold shadow-sm hover:shadow-md transition-all min-h-[52px]"
+        >
+          <span className="text-xl">📱</span>
+          Join Our Free Telegram Community
+        </a>
+        <a
+          href="https://www.youtube.com/@moms_who_trade"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-full flex items-center justify-center gap-3 bg-red-50 text-red-700 rounded-pill px-6 py-3.5 font-semibold hover:bg-red-100 transition-all min-h-[48px]"
+        >
+          <Youtube size={20} />
+          Follow on YouTube
+        </a>
+        <a
+          href="https://www.instagram.com/moms_who_trade/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-full flex items-center justify-center gap-3 rounded-pill px-6 py-3.5 font-semibold transition-all min-h-[48px]"
+          style={{ background: 'linear-gradient(135deg, #fdf3f8 0%, #f0e8ff 100%)', color: '#9333ea' }}
+        >
+          <Instagram size={20} />
+          Follow on Instagram
+        </a>
+      </div>
       <Button onClick={handleComplete} size="lg" fullWidth variant="accent">
         Start Exploring →
       </Button>

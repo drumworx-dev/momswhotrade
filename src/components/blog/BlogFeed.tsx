@@ -47,6 +47,7 @@ export function BlogFeed() {
   const [posts, setPosts] = useState<BlogPost[]>(mockPosts);
   const [tabs, setTabs] = useState<string[]>(['Latest']);
   const [loading, setLoading] = useState(!!GHOST_CONFIG.key);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
   const { user, signOut } = useAuth();
 
   useEffect(() => {
@@ -69,7 +70,7 @@ export function BlogFeed() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="bg-white px-4 pt-12 pb-3 sticky top-0 z-30 shadow-sm">
+      <div className="bg-white px-4 pt-6 pb-3 sticky top-0 z-30 shadow-sm">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <img
@@ -88,7 +89,7 @@ export function BlogFeed() {
             <span className="font-bold text-text-primary text-base">Moms Who Trade</span>
           </div>
           <button
-            onClick={signOut}
+            onClick={() => setShowLogoutModal(true)}
             className="w-9 h-9 rounded-full overflow-hidden bg-accent-primary flex items-center justify-center"
           >
             {user?.photoURL ? (
@@ -118,6 +119,36 @@ export function BlogFeed() {
           ))}
         </div>
       </div>
+
+      {/* Logout confirmation modal */}
+      {showLogoutModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm"
+          onClick={() => setShowLogoutModal(false)}
+        >
+          <div
+            className="bg-white w-full max-w-sm rounded-t-2xl p-6 pb-10 flex flex-col gap-3"
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-bold text-text-primary text-center">Sign Out?</h3>
+            <p className="text-text-secondary text-sm text-center mb-2">
+              You'll need to sign in again to access your account.
+            </p>
+            <button
+              onClick={() => { setShowLogoutModal(false); signOut(); }}
+              className="w-full py-3.5 rounded-pill bg-text-primary text-white font-semibold text-sm"
+            >
+              Yes, sign out
+            </button>
+            <button
+              onClick={() => setShowLogoutModal(false)}
+              className="w-full py-3 rounded-pill bg-surface-dim text-text-secondary font-medium text-sm"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Feed */}
       <div className="flex-1 overflow-y-auto bg-bg-primary px-4 py-4 pb-24">
