@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FileDown, AlertTriangle, Info } from 'lucide-react';
@@ -137,14 +137,26 @@ function buildPDFHtml(state: CalculatorState, r: CalculatorResults): string {
   );
 }
 
+const CALC_STORAGE_KEY = 'mwt_calc_state';
+
 // ─── component ─────────────────────────────────────────────────────────────
 export function TradingCalculator() {
-  const [state, setState]       = useState<CalculatorState>(DEFAULT);
+  const [state, setState]       = useState<CalculatorState>(() => {
+    try {
+      const stored = localStorage.getItem(CALC_STORAGE_KEY);
+      return stored ? { ...DEFAULT, ...JSON.parse(stored) } : DEFAULT;
+    } catch { return DEFAULT; }
+  });
   const [results, setResults]   = useState<CalculatorResults | null>(null);
   const [tpUserEdited, setTpUserEdited] = useState(false);
   const { addTrade }            = useTrades();
   const { user }                = useAuth();
   const resultsRef              = useRef<HTMLDivElement>(null);
+
+  // Persist calculator state across tab switches
+  useEffect(() => {
+    localStorage.setItem(CALC_STORAGE_KEY, JSON.stringify(state));
+  }, [state]);
 
   const sym     = getSym(state.currency);
   const acct    = parseFloat(state.accountBalance) || 0;
@@ -240,17 +252,17 @@ export function TradingCalculator() {
   const tpDist = results ? Math.abs(results.takeProfitPrice - results.entryPrice) : 1;
   const slDist = results ? Math.abs(results.entryPrice - results.stopLossPrice)   : 1;
 
-  const riskHighlight = results && results.riskPercent > 5;
+  const riskHighlight = results && results.riskPercent > 25;
 
   return (
     <div className="flex flex-col h-full bg-bg-primary">
       {/* Header */}
-      <div className="bg-white px-4 pt-6 pb-4 sticky top-0 z-30 shadow-sm">
+      <div className="bg-white px-4 pb-4 sticky top-0 z-30 shadow-sm page-header">
         <h1 className="text-xl font-bold text-text-primary">Trade Calculator</h1>
         <p className="text-text-secondary text-sm">Size your position & visualise the trade</p>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 pb-32">
+      <div className="flex-1 overflow-y-auto px-4 py-4 pb-40">
         <div className="max-w-lg mx-auto flex flex-col gap-4">
 
           {/* ═══ SECTION: TRADE SETUP ══════════════════════════════════ */}
@@ -483,7 +495,7 @@ export function TradingCalculator() {
                   <div className="flex items-center gap-2 bg-orange-50 border border-accent-warning rounded-card p-3">
                     <AlertTriangle size={16} className="text-accent-warning flex-shrink-0" />
                     <p className="text-sm text-text-secondary">
-                      Risking <strong>{results.riskPercent.toFixed(1)}%</strong> — consider keeping below 5%
+                      Risking <strong>{results.riskPercent.toFixed(1)}%</strong> — consider keeping below 25%
                     </p>
                   </div>
                 )}

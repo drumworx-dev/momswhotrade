@@ -2,20 +2,29 @@ import { useMemo, useEffect } from 'react';
 
 const KEY = 'mwt_login_dates';
 
-function todayISO(): string {
-  return new Date().toISOString().split('T')[0];
+/** Local-time date string — avoids UTC timezone drift */
+function localDateStr(d: Date = new Date()): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
-function recordToday(): string[] {
-  const today = todayISO();
+/** Parse a YYYY-MM-DD string as local midnight (not UTC) */
+function parseLocalDate(s: string): Date {
+  const [y, m, d] = s.split('-').map(Number);
+  return new Date(y, m - 1, d); // local midnight
+}
+
+function recordToday(): void {
+  const today = localDateStr();
   const stored = localStorage.getItem(KEY);
   const dates: string[] = stored ? JSON.parse(stored) : [];
   if (!dates.includes(today)) {
     dates.push(today);
-    dates.sort(); // keep in ascending order
+    dates.sort();
     localStorage.setItem(KEY, JSON.stringify(dates));
   }
-  return dates;
 }
 
 export interface LoginStreak {
@@ -26,40 +35,39 @@ export interface LoginStreak {
 }
 
 export function useLoginStreak(): LoginStreak {
-  const today = todayISO();
+  // Record synchronously so the memo below always sees today
+  const today = localDateStr();
+  if (typeof window !== 'undefined') {
+    const stored = localStorage.getItem(KEY);
+    const dates: string[] = stored ? JSON.parse(stored) : [];
+    if (!dates.includes(today)) {
+      dates.push(today);
+      dates.sort();
+      localStorage.setItem(KEY, JSON.stringify(dates));
+    }
+  }
 
-  // Record today's visit on mount
-  useEffect(() => {
-    recordToday();
-  }, []);
+  // Keep recording in an effect for any subsequent visits within the same session
+  useEffect(() => { recordToday(); }, []);
 
   return useMemo(() => {
     const stored = localStorage.getItem(KEY);
-    const allDates: string[] = stored ? JSON.parse(stored) : [];
+    const dates: string[] = stored ? JSON.parse(stored) : [today];
 
-    // Ensure today is included for calculation even before the effect runs
-    const dates = allDates.includes(today)
-      ? allDates
-      : [...allDates, today].sort();
-
-    if (dates.length === 0) {
-      return { activeDays: 1, denominator: 1, percent: 100, color: 'green' };
-    }
-
-    const todayMs   = new Date(today + 'T00:00:00').getTime();
-    const firstMs   = new Date(dates[0] + 'T00:00:00').getTime();
-    const daysSinceFirst = Math.floor((todayMs - firstMs) / 86_400_000) + 1; // inclusive
+    const todayLocal   = parseLocalDate(today).getTime();      // local midnight ms
+    const firstLocal   = parseLocalDate(dates[0]).getTime();   // local midnight ms
+    const daysSinceFirst = Math.round((todayLocal - firstLocal) / 86_400_000) + 1; // inclusive
     const denominator    = Math.min(daysSinceFirst, 7);
 
-    // Build the set of dates within the window (last `denominator` days up to and including today)
+    // Build window of the last `denominator` LOCAL days up to and including today
     const windowSet = new Set<string>();
     for (let i = 0; i < denominator; i++) {
-      const d = new Date(todayMs - i * 86_400_000);
-      windowSet.add(d.toISOString().split('T')[0]);
+      const d = new Date(todayLocal - i * 86_400_000); // subtract whole days in ms
+      windowSet.add(localDateStr(d));
     }
 
     const activeDays = dates.filter(d => windowSet.has(d)).length;
-    const percent    = (activeDays / denominator) * 100;
+    const percent    = denominator > 0 ? (activeDays / denominator) * 100 : 100;
     const color: LoginStreak['color'] =
       percent >= 80 ? 'green' : percent > 50 ? 'yellow' : 'red';
 

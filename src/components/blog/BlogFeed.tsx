@@ -88,7 +88,7 @@ export function BlogFeed() {
         )}
       </AnimatePresence>
       {/* Header */}
-      <div className="bg-white px-4 pt-6 pb-3 sticky top-0 z-30 shadow-sm">
+      <div className="bg-white px-4 pb-3 sticky top-0 z-30 shadow-sm page-header">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <img

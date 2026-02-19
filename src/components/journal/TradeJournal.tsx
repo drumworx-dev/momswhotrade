@@ -70,7 +70,7 @@ export function TradeJournal() {
   return (
     <div className="flex flex-col h-full bg-bg-primary">
       {/* Header */}
-      <div className="bg-white px-4 pt-6 pb-4 sticky top-0 z-30 shadow-sm">
+      <div className="bg-white px-4 pb-4 sticky top-0 z-30 shadow-sm page-header">
         <div className="flex items-center justify-between mb-3">
           <div>
             <h1 className="text-xl font-bold text-text-primary">Trade Journal</h1>
