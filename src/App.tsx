@@ -33,7 +33,7 @@ function AppRoutes() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-bg-primary">
+    <div className="flex flex-col h-full bg-bg-primary">
       <main className="flex-1 overflow-hidden">
         <Routes>
           <Route path="/" element={<BlogFeed />} />
