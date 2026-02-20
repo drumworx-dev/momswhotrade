@@ -430,11 +430,11 @@ export function TradingCalculator() {
               </div>
 
               {/* Entry / SL */}
-              <Input label="Entry Price" prefix={sym} type="text" placeholder="45,000"
-                value={displayNum(state.entryPrice)} onChange={e => update('entryPrice', rawNum(e.target.value))} inputMode="decimal" />
+              <Input label="Entry Price" prefix={sym} type="text" placeholder="e.g. 80.25"
+                value={state.entryPrice} onChange={e => update('entryPrice', e.target.value)} inputMode="decimal" />
 
-              <Input label="Stop Loss" prefix={sym} type="text" placeholder="43,000"
-                value={displayNum(state.stopLoss)} onChange={e => update('stopLoss', rawNum(e.target.value))} inputMode="decimal" />
+              <Input label="Stop Loss" prefix={sym} type="text" placeholder="e.g. 78.50"
+                value={state.stopLoss} onChange={e => update('stopLoss', e.target.value)} inputMode="decimal" />
 
               {/* Quick R:R presets — ABOVE take profit so they can auto-fill it */}
               {hasEntryAndSL && (
@@ -475,11 +475,11 @@ export function TradingCalculator() {
               )}
 
               {/* Take Profit */}
-              <Input label="Take Profit" prefix={sym} type="text" placeholder="55,000 (optional)"
-                value={displayNum(state.takeProfit)}
+              <Input label="Take Profit" prefix={sym} type="text" placeholder="e.g. 90.00 (optional)"
+                value={state.takeProfit}
                 onChange={e => {
                   setTpUserEdited(true);
-                  update('takeProfit', rawNum(e.target.value));
+                  update('takeProfit', e.target.value);
                 }}
                 inputMode="decimal" />
             </div>

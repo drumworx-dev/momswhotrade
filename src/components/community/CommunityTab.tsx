@@ -32,7 +32,7 @@ export function CommunityTab() {
             </div>
 
             <ul className="flex flex-col gap-2 mb-5">
-              {['Daily market updates', 'Trade ideas & alerts', 'Ask Mel anything', 'Beginner-friendly chat'].map(item => (
+              {['Regular market updates', 'Trade ideas & alerts', 'Reply to Mel on posts', 'Beginner-friendly chat'].map(item => (
                 <li key={item} className="flex items-center gap-2 text-sm text-text-secondary">
                   <span className="text-accent-success">✓</span>
                   {item}
@@ -70,10 +70,10 @@ export function CommunityTab() {
 
             <ul className="flex flex-col gap-2 mb-5">
               {[
-                'Personalized trading plan',
-                'Portfolio review & feedback',
+                'Your personalized onboarding',
+                'A customized trading plan',
                 'Weekly progress check-ins',
-                'Strategy development',
+                'Strategy & chart deep-dives',
               ].map(item => (
                 <li key={item} className="flex items-center gap-2 text-sm text-text-secondary">
                   <span className="text-accent-success">✓</span>
