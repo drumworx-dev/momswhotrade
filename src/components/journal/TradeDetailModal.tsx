@@ -3,7 +3,7 @@ import type { Trade } from '../../types';
 import { Modal } from '../shared/Modal';
 import { Button } from '../shared/Button';
 import { Input } from '../shared/Input';
-import { formatPrice, formatPercent } from '../../utils/formatters';
+import { formatPrice, formatPercent, displayNum, normalizeInput } from '../../utils/formatters';
 import { calculateTradeResult } from '../../utils/calculations';
 import { useTrades } from '../../context/TradesContext';
 import { toast } from 'react-hot-toast';
@@ -118,8 +118,8 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
           prefix="$"
           type="text"
           placeholder="Enter closing price"
-          value={closePrice}
-          onChange={e => setClosePrice(e.target.value)}
+          value={displayNum(closePrice)}
+          onChange={e => setClosePrice(normalizeInput(e.target.value))}
           inputMode="decimal"
         />
 

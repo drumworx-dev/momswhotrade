@@ -9,6 +9,7 @@ import { calculateTrade } from '../../utils/calculations';
 import type { CalculatorState, CalculatorResults, CurrencyCode } from '../../types';
 import { useTrades } from '../../context/TradesContext';
 import { useAuth } from '../../context/AuthContext';
+import { displayNum, normalizeInput } from '../../utils/formatters';
 
 // ─── constants ─────────────────────────────────────────────────────────────
 const CURRENCIES: { code: CurrencyCode; label: string; sym: string }[] = [
@@ -61,30 +62,6 @@ function getSym(code: CurrencyCode) {
   return CURRENCIES.find(c => c.code === code)?.sym ?? '$';
 }
 
-/** Format a raw number string with thousand-comma separators */
-function displayNum(raw: string): string {
-  if (!raw) return raw;
-  const stripped = raw.replace(/,/g, '');
-  const [int, dec] = stripped.split('.');
-  const formatted = (int || '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  return dec !== undefined ? `${formatted}.${dec}` : formatted;
-}
-
-/**
- * Normalise numeric keyboard input for any locale:
- * - Replaces all commas with periods (European keyboards use ',' as decimal)
- * - If multiple periods result (e.g. paste of "10,000.25" → "10.000.25")
- *   all but the last are collapsed so the last period is the decimal point.
- */
-function normalizeInput(v: string): string {
-  const withPeriods = v.replace(/,/g, '.');
-  const parts = withPeriods.split('.');
-  if (parts.length > 2) {
-    // e.g. "10.000.25" → intPart="10000", dec="25" → "10000.25"
-    return parts.slice(0, -1).join('') + '.' + parts[parts.length - 1];
-  }
-  return withPeriods;
-}
 
 function fmtAmt(n: number, sym: string, dec = 2): string {
   if (!isFinite(n)) return sym + '0.00';
@@ -162,7 +139,6 @@ export function TradingCalculator() {
   });
   const [results, setResults]     = useState<CalculatorResults | null>(null);
   const [tpUserEdited, setTpUserEdited] = useState(false);
-  const [focusedField, setFocusedField] = useState<string | null>(null);
   const { addTrade }            = useTrades();
   const { user }                = useAuth();
   const resultsRef              = useRef<HTMLDivElement>(null);
@@ -335,16 +311,14 @@ export function TradingCalculator() {
                 </div>
               </div>
 
-              {/* Account Size — show raw while editing (eliminates comma ambiguity), formatted on blur */}
+              {/* Account Size */}
               <Input
                 label="Account Size"
                 prefix={sym}
                 type="text"
-                placeholder="10000"
-                value={focusedField === 'accountBalance' ? state.accountBalance : displayNum(state.accountBalance)}
+                placeholder="10,000"
+                value={displayNum(state.accountBalance)}
                 onChange={e => update('accountBalance', normalizeInput(e.target.value))}
-                onFocus={() => setFocusedField('accountBalance')}
-                onBlur={() => setFocusedField(null)}
                 inputMode="decimal"
               />
 
@@ -370,10 +344,8 @@ export function TradingCalculator() {
                   </div>
                   <input
                     type="text"
-                    value={focusedField === 'riskValue' ? state.riskValue : displayNum(state.riskValue)}
+                    value={displayNum(state.riskValue)}
                     onChange={e => update('riskValue', normalizeInput(e.target.value))}
-                    onFocus={() => setFocusedField('riskValue')}
-                    onBlur={() => setFocusedField(null)}
                     className="flex-1 bg-surface-dim border border-gray-200 rounded-input px-4 py-2.5 text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary"
                     placeholder={state.riskType === 'percent' ? '5' : '500'}
                     inputMode="decimal"
@@ -447,10 +419,10 @@ export function TradingCalculator() {
 
               {/* Entry / SL */}
               <Input label="Entry Price" prefix={sym} type="text" placeholder="e.g. 80.25"
-                value={state.entryPrice} onChange={e => update('entryPrice', normalizeInput(e.target.value))} inputMode="decimal" />
+                value={displayNum(state.entryPrice)} onChange={e => update('entryPrice', normalizeInput(e.target.value))} inputMode="decimal" />
 
               <Input label="Stop Loss" prefix={sym} type="text" placeholder="e.g. 78.50"
-                value={state.stopLoss} onChange={e => update('stopLoss', normalizeInput(e.target.value))} inputMode="decimal" />
+                value={displayNum(state.stopLoss)} onChange={e => update('stopLoss', normalizeInput(e.target.value))} inputMode="decimal" />
 
               {/* Quick R:R presets — ABOVE take profit so they can auto-fill it */}
               {hasEntryAndSL && (
@@ -492,7 +464,7 @@ export function TradingCalculator() {
 
               {/* Take Profit */}
               <Input label="Take Profit" prefix={sym} type="text" placeholder="e.g. 90.00 (optional)"
-                value={state.takeProfit}
+                value={displayNum(state.takeProfit)}
                 onChange={e => {
                   setTpUserEdited(true);
                   update('takeProfit', normalizeInput(e.target.value));
