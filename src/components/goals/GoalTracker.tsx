@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { ChevronDown, ChevronUp, RefreshCw, Pencil, Check, X } from 'lucide-react';
 import { useGoals } from '../../context/GoalsContext';
 import { useTrades } from '../../context/TradesContext';
-import { formatCurrency } from '../../utils/formatters';
+import { formatCurrency, displayNum, normalizeInput } from '../../utils/formatters';
 import { Button } from '../shared/Button';
 import { toast } from 'react-hot-toast';
 
@@ -152,9 +152,10 @@ export function GoalTracker() {
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary">$</span>
                     <input
-                      type="number"
-                      value={startBalance}
-                      onChange={e => setStartBalance(e.target.value)}
+                      type="text"
+                      inputMode="decimal"
+                      value={displayNum(startBalance)}
+                      onChange={e => setStartBalance(normalizeInput(e.target.value))}
                       className="w-full bg-surface-dim border border-gray-200 rounded-input pl-8 pr-4 py-3 text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary"
                     />
                   </div>
@@ -292,9 +293,10 @@ export function GoalTracker() {
                           {isEditing ? (
                             <div className="flex items-center justify-end gap-1">
                               <input
-                                type="number"
-                                value={editingValue}
-                                onChange={e => setEditingValue(e.target.value)}
+                                type="text"
+                                inputMode="decimal"
+                                value={displayNum(editingValue)}
+                                onChange={e => setEditingValue(normalizeInput(e.target.value))}
                                 className="w-24 text-xs border border-accent-primary rounded px-1 py-0.5 text-right"
                                 autoFocus
                                 onKeyDown={e => {

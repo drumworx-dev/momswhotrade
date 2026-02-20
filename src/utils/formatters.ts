@@ -30,6 +30,25 @@ export function formatNumber(value: number, decimals = 4): string {
   return value.toFixed(decimals);
 }
 
+/** Format a raw number string with thousand-comma separators while preserving decimals. */
+export function displayNum(raw: string): string {
+  if (!raw) return raw;
+  const stripped = raw.replace(/,/g, '');
+  const [int, dec] = stripped.split('.');
+  const formatted = (int || '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return dec !== undefined ? `${formatted}.${dec}` : formatted;
+}
+
+/**
+ * Normalise numeric keyboard input across locales:
+ * - Trailing comma (European decimal key) → convert to period
+ * - Otherwise → strip all commas (they are display thousands-separators injected by displayNum)
+ */
+export function normalizeInput(v: string): string {
+  if (v.endsWith(',')) return v.slice(0, -1).replace(/,/g, '') + '.';
+  return v.replace(/,/g, '');
+}
+
 export function formatDate(dateStr: string): string {
   const date = new Date(dateStr);
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
