@@ -112,7 +112,7 @@ export function CommunityTab() {
     try {
       const functions = getFunctions(app);
       const addGhostLabel = httpsCallable(functions, 'addGhostLabel');
-      addGhostLabel({ email: user.email, label });
+      addGhostLabel({ email: user.email, label, name: user.displayName ?? undefined });
     } catch {
       // Silent — don't block user
     }

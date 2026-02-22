@@ -15,10 +15,10 @@ const addGhostLabelFn = httpsCallable(ghostFunctions, 'addGhostLabel');
  * Creates/tags the Ghost member and, if the user consented, subscribes them to the
  * default newsletter — all in one server-side call so there are no CORS issues.
  */
-async function ensureGhostMember(email: string, subscribeToNewsletter: boolean) {
+async function ensureGhostMember(email: string, subscribeToNewsletter: boolean, name?: string) {
   console.log('[Ghost] calling addGhostLabel for', email, '| subscribe:', subscribeToNewsletter);
   try {
-    const result = await addGhostLabelFn({ email, label: 'Free Member', subscribeToNewsletter });
+    const result = await addGhostLabelFn({ email, label: 'Free Member', subscribeToNewsletter, name });
     console.log('[Ghost] member synced:', result.data);
   } catch (err: any) {
     console.error('[Ghost] addGhostLabel failed — code:', err?.code, 'message:', err?.message, err);
@@ -49,7 +49,7 @@ export function OnboardingFlow() {
   async function handleEmailConsent(consent: boolean) {
     if (user?.email) {
       // consent flag passed to the function — newsletter subscription happens server-side
-      await ensureGhostMember(user.email, consent);
+      await ensureGhostMember(user.email, consent, user.displayName ?? undefined);
     }
     // Merge into one call so onboardingComplete is set atomically with emailConsent.
     await updateUserProfile({
