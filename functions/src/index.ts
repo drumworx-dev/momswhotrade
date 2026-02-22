@@ -43,19 +43,33 @@ function ghostToken(): string {
 interface GhostMember {
   id: string;
   labels: Array<{ id: string; name: string }>;
+  newsletters: Array<{ id: string }>;
+}
+
+/** Fetches the default (first) newsletter ID from Ghost, or null if none found. */
+async function fetchDefaultNewsletterId(headers: Record<string, string>): Promise<string | null> {
+  const res = await fetch(`${GHOST_API_URL}/newsletters/?limit=1`, { headers });
+  if (!res.ok) return null;
+  const data = (await res.json()) as { newsletters: Array<{ id: string }> };
+  return data.newsletters[0]?.id ?? null;
 }
 
 /**
  * Callable function: addGhostLabel
- * Finds (or creates) a Ghost member by email and adds the given label.
- * Called client-side after a Whop purchase completes.
+ * Finds (or creates) a Ghost member by email, adds the given label, and
+ * optionally subscribes them to the default newsletter (when subscribeToNewsletter=true).
+ * Handles both actions server-side to avoid client-side CORS issues.
  */
 export const addGhostLabel = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Must be signed in.');
   }
 
-  const { email, label } = request.data as { email?: string; label?: string };
+  const { email, label, subscribeToNewsletter } = request.data as {
+    email?: string;
+    label?: string;
+    subscribeToNewsletter?: boolean;
+  };
   if (!email || !label) {
     throw new HttpsError('invalid-argument', 'email and label are required.');
   }
@@ -79,12 +93,18 @@ export const addGhostLabel = onCall(async (request) => {
   const searchData = (await searchRes.json()) as { members: GhostMember[] };
   const existingMember = searchData.members[0] ?? null;
 
-  // ── 2a. Member not found → create with label ─────────────────────────────
+  // Fetch newsletter ID now if we need it (one request, reused below)
+  const newsletterId = subscribeToNewsletter ? await fetchDefaultNewsletterId(headers) : null;
+
+  // ── 2a. Member not found → create with label (and newsletter if consented) ─
   if (!existingMember) {
+    const newMember: Record<string, unknown> = { email, labels: [{ name: label }] };
+    if (newsletterId) newMember.newsletters = [{ id: newsletterId }];
+
     const createRes = await fetch(`${GHOST_API_URL}/members/`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ members: [{ email, labels: [{ name: label }] }] }),
+      body: JSON.stringify({ members: [newMember] }),
     });
     if (!createRes.ok) {
       throw new HttpsError('internal', `Ghost member create failed: ${createRes.status}`);
@@ -92,18 +112,27 @@ export const addGhostLabel = onCall(async (request) => {
     return { success: true, action: 'created' };
   }
 
-  // ── 2b. Member exists → add label if not already present ─────────────────
+  // ── 2b. Member exists → patch label + newsletter if needed ────────────────
   const existingLabels = existingMember.labels.map((l) => ({ name: l.name }));
-  if (existingLabels.some((l) => l.name === label)) {
+  const needsLabel = !existingLabels.some((l) => l.name === label);
+  const alreadySubscribed = newsletterId
+    ? existingMember.newsletters.some((n) => n.id === newsletterId)
+    : true;
+
+  if (!needsLabel && alreadySubscribed) {
     return { success: true, action: 'already_tagged' };
+  }
+
+  const patch: Record<string, unknown> = {};
+  if (needsLabel) patch.labels = [...existingLabels, { name: label }];
+  if (!alreadySubscribed && newsletterId) {
+    patch.newsletters = [...existingMember.newsletters.map((n) => ({ id: n.id })), { id: newsletterId }];
   }
 
   const updateRes = await fetch(`${GHOST_API_URL}/members/${existingMember.id}/`, {
     method: 'PUT',
     headers,
-    body: JSON.stringify({
-      members: [{ labels: [...existingLabels, { name: label }] }],
-    }),
+    body: JSON.stringify({ members: [patch] }),
   });
   if (!updateRes.ok) {
     throw new HttpsError('internal', `Ghost member update failed: ${updateRes.status}`);

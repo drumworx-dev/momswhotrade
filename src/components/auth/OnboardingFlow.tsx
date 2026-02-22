@@ -11,27 +11,17 @@ import { formatCurrency } from '../../utils/formatters';
 const ghostFunctions = getFunctions(app, 'us-central1');
 const addGhostLabelFn = httpsCallable(ghostFunctions, 'addGhostLabel');
 
-/** Creates the Ghost member (via secure cloud function). Always called on onboarding complete. */
-async function ensureGhostMember(email: string) {
-  console.log('[Ghost] calling addGhostLabel for', email);
+/**
+ * Creates/tags the Ghost member and, if the user consented, subscribes them to the
+ * default newsletter — all in one server-side call so there are no CORS issues.
+ */
+async function ensureGhostMember(email: string, subscribeToNewsletter: boolean) {
+  console.log('[Ghost] calling addGhostLabel for', email, '| subscribe:', subscribeToNewsletter);
   try {
-    const result = await addGhostLabelFn({ email, label: 'Free Member' });
-    console.log('[Ghost] member created successfully:', result.data);
+    const result = await addGhostLabelFn({ email, label: 'Free Member', subscribeToNewsletter });
+    console.log('[Ghost] member synced:', result.data);
   } catch (err: any) {
     console.error('[Ghost] addGhostLabel failed — code:', err?.code, 'message:', err?.message, err);
-  }
-}
-
-/** Opts the user into the Ghost newsletter (sends magic-link email). Only if they consent. */
-async function subscribeToGhostNewsletter(email: string) {
-  try {
-    await fetch('https://momswhotrade.co/members/api/send-magic-link/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, emailType: 'subscribe' }),
-    });
-  } catch {
-    // Silent — don't block the user
   }
 }
 
@@ -58,10 +48,8 @@ export function OnboardingFlow() {
   // Called from step 5 — handles email consent then completes onboarding
   async function handleEmailConsent(consent: boolean) {
     if (user?.email) {
-      // Await so any error shows in the console before the screen transitions
-      await ensureGhostMember(user.email);
-      // Only subscribe to newsletter emails if they explicitly consented
-      if (consent) subscribeToGhostNewsletter(user.email); // fire-and-forget
+      // consent flag passed to the function — newsletter subscription happens server-side
+      await ensureGhostMember(user.email, consent);
     }
     // Merge into one call so onboardingComplete is set atomically with emailConsent.
     await updateUserProfile({
