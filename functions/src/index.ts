@@ -19,6 +19,7 @@
  */
 
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { beforeUserCreated } from 'firebase-functions/v2/identity';
 import * as admin from 'firebase-admin';
 import * as jwt from 'jsonwebtoken';
 
@@ -109,4 +110,72 @@ export const addGhostLabel = onCall(async (request) => {
   }
 
   return { success: true, action: 'labelled' };
+});
+
+/**
+ * Auth trigger: syncNewUserToGhost
+ * Fires whenever a new Firebase user is created (email/password or Google).
+ * Creates them as a Ghost member so they're always in Ghost from day one.
+ * Errors are caught and logged — user creation is never blocked.
+ */
+export const syncNewUserToGhost = beforeUserCreated(async (event) => {
+  const email = event.data?.email;
+  if (!email) return;
+
+  try {
+    const apiKey = process.env.GHOST_ADMIN_API_KEY;
+    if (!apiKey) {
+      console.error('syncNewUserToGhost: GHOST_ADMIN_API_KEY is not set');
+      return;
+    }
+
+    const [id, secret] = apiKey.split(':');
+    const token = jwt.sign({}, Buffer.from(secret, 'hex'), {
+      keyid: id,
+      algorithm: 'HS256',
+      expiresIn: '5m',
+      audience: '/admin/',
+    });
+
+    const headers = {
+      Authorization: `Ghost ${token}`,
+      'Content-Type': 'application/json',
+      'Accept-Version': 'v5.0',
+    };
+
+    const displayName = event.data?.displayName || '';
+
+    // Check if member already exists first
+    const searchRes = await fetch(
+      `${GHOST_API_URL}/members/?filter=email:'${encodeURIComponent(email)}'`,
+      { headers }
+    );
+    if (searchRes.ok) {
+      const searchData = (await searchRes.json()) as { members: GhostMember[] };
+      if (searchData.members.length > 0) {
+        console.log(`syncNewUserToGhost: ${email} already in Ghost`);
+        return;
+      }
+    }
+
+    // Create the member
+    const body: Record<string, unknown> = { email };
+    if (displayName) body.name = displayName;
+
+    const createRes = await fetch(`${GHOST_API_URL}/members/`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ members: [body] }),
+    });
+
+    if (createRes.ok) {
+      console.log(`syncNewUserToGhost: created Ghost member for ${email}`);
+    } else {
+      const errText = await createRes.text();
+      console.error(`syncNewUserToGhost: Ghost create failed ${createRes.status}: ${errText}`);
+    }
+  } catch (err) {
+    // Never block user creation — just log and move on
+    console.error('syncNewUserToGhost: unexpected error', err);
+  }
 });

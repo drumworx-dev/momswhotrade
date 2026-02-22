@@ -18,7 +18,7 @@ function AppRoutes() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-bg-primary flex flex-col items-center justify-center gap-5">
+      <div className="min-h-screen flex flex-col items-center justify-center gap-5" style={{ backgroundColor: '#FDE2D1' }}>
         <img src="/icon.svg" alt="Moms Who Trade" className="w-24 h-24" />
         <div className="flex flex-col items-center gap-3">
           <LoadingSpinner size="md" />

@@ -255,7 +255,7 @@ export function OnboardingFlow() {
   ];
 
   return (
-    <div className="min-h-screen bg-bg-primary flex flex-col px-6 py-12">
+    <div className="min-h-screen flex flex-col px-6 py-12" style={{ backgroundColor: '#FDE2D1' }}>
       <div className="max-w-sm mx-auto w-full flex-1 flex flex-col">
         {/* Progress dots — shown for steps 1–5 */}
         {step > 0 && (
