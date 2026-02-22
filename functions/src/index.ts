@@ -19,7 +19,7 @@
  */
 
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import { auth as authV1 } from 'firebase-functions/v1';
+import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import * as admin from 'firebase-admin';
 import * as jwt from 'jsonwebtoken';
 
@@ -148,14 +148,15 @@ export const addGhostLabel = onCall(async (request) => {
 });
 
 /**
- * Auth trigger: syncNewUserToGhost
- * Fires whenever a new Firebase user is created (email/password or Google).
- * Creates them as a Ghost member so they're always in Ghost from day one.
- * Errors are caught and logged — user creation is never blocked.
- * Uses v1 auth trigger (not a blocking function) so no Identity Platform upgrade required.
+ * Firestore trigger: syncNewUserToGhost
+ * Fires when a new document is created in the `users` collection (i.e. every
+ * new sign-up, regardless of provider). Creates a Ghost member so the user is
+ * always in Ghost from day one. Errors are caught and logged — they never
+ * surface to the user. Pure gen-2, no Identity Platform required.
  */
-export const syncNewUserToGhost = authV1.user().onCreate(async (user) => {
-  const email = user.email;
+export const syncNewUserToGhost = onDocumentCreated('users/{uid}', async (event) => {
+  const data = event.data?.data() as Record<string, unknown> | undefined;
+  const email = data?.email as string | undefined;
   if (!email) return;
 
   try {
@@ -179,7 +180,7 @@ export const syncNewUserToGhost = authV1.user().onCreate(async (user) => {
       'Accept-Version': 'v5.0',
     };
 
-    const displayName = user.displayName || '';
+    const displayName = (data?.displayName as string | undefined) || '';
 
     // Check if member already exists first
     const searchRes = await fetch(
