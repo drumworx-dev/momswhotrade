@@ -87,7 +87,9 @@ export const addGhostLabel = onCall(async (request) => {
     { headers }
   );
   if (!searchRes.ok) {
-    throw new HttpsError('internal', `Ghost member search failed: ${searchRes.status}`);
+    const body = await searchRes.text().catch(() => '');
+    console.error(`Ghost member search failed ${searchRes.status}: ${body}`);
+    throw new HttpsError('internal', `Ghost member search failed: ${searchRes.status} — ${body}`);
   }
 
   const searchData = (await searchRes.json()) as { members: GhostMember[] };
@@ -107,7 +109,9 @@ export const addGhostLabel = onCall(async (request) => {
       body: JSON.stringify({ members: [newMember] }),
     });
     if (!createRes.ok) {
-      throw new HttpsError('internal', `Ghost member create failed: ${createRes.status}`);
+      const body = await createRes.text().catch(() => '');
+      console.error(`Ghost member create failed ${createRes.status}: ${body}`);
+      throw new HttpsError('internal', `Ghost member create failed: ${createRes.status} — ${body}`);
     }
     return { success: true, action: 'created' };
   }
@@ -135,7 +139,9 @@ export const addGhostLabel = onCall(async (request) => {
     body: JSON.stringify({ members: [patch] }),
   });
   if (!updateRes.ok) {
-    throw new HttpsError('internal', `Ghost member update failed: ${updateRes.status}`);
+    const body = await updateRes.text().catch(() => '');
+    console.error(`Ghost member update failed ${updateRes.status}: ${body}`);
+    throw new HttpsError('internal', `Ghost member update failed: ${updateRes.status} — ${body}`);
   }
 
   return { success: true, action: 'labelled' };
