@@ -119,15 +119,34 @@ export async function generatePnLCard(
   // Two text lines stacked: brand at y≈26, sub at y≈46
   ctx.textBaseline = 'middle';
 
+  // Small MWT logo badge — white rounded square, dark "MWT" text inside
+  const LOGO_SZ = 22;                  // 22×22 px
+  const LOGO_X  = PAD;                 // left edge
+  const LOGO_Y  = 36 - LOGO_SZ / 2;   // vertically centred in header (y=25)
+  const LOGO_CX = LOGO_X + LOGO_SZ / 2;
+  const LOGO_CY = 36;
+  roundRect(ctx, LOGO_X, LOGO_Y, LOGO_SZ, LOGO_SZ, 5);
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fill();
+  (ctx as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing = '0px';
+  ctx.font = '800 7px system-ui,-apple-system,sans-serif';
+  ctx.fillStyle = '#0F0B0A';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('MWT', LOGO_CX, LOGO_CY);
+  ctx.textAlign = 'left';
+
+  const TEXT_X = LOGO_X + LOGO_SZ + 8; // 52 — text starts after the badge
+
   ctx.fillStyle = '#FFFFFF';
   ctx.font = '800 12px system-ui,-apple-system,sans-serif';
   (ctx as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing = '2.5px';
-  ctx.fillText('MOMS WHO TRADE', PAD, 26);
+  ctx.fillText('MOMS WHO TRADE', TEXT_X, 26);
 
   ctx.fillStyle = '#D4A5A5';
   ctx.font = '500 9px system-ui,-apple-system,sans-serif';
   (ctx as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing = '1.2px';
-  ctx.fillText('TRADE JOURNAL', PAD, 46);
+  ctx.fillText('TRADE JOURNAL', TEXT_X, 46);
 
   // Category pill (right side, center y=36)
   if (cat) {
