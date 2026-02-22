@@ -58,7 +58,7 @@ export function LoginScreen() {
   const inputClass = "w-full bg-surface-dim border border-gray-200 rounded-input px-4 py-3 text-text-primary placeholder-text-tertiary focus:outline-none focus:ring-2 focus:ring-accent-primary text-sm";
 
   return (
-    <div className="min-h-screen bg-bg-primary flex flex-col items-center justify-center px-6 py-12">
+    <div className="min-h-screen flex flex-col items-center justify-center px-6 py-12" style={{ backgroundColor: '#FDE2D1' }}>
       <motion.div
         className="w-full max-w-sm"
         initial={{ opacity: 0, y: 20 }}
