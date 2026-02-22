@@ -23,6 +23,7 @@ export interface AppUser {
   monthlyGoal?: number;
   dailyProfitGoalPercent?: number;
   onboardingComplete?: boolean;
+  emailConsent?: boolean;
 }
 
 interface AuthContextType {

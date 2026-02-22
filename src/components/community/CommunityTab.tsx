@@ -1,16 +1,29 @@
 import { useState } from 'react';
-import { ExternalLink, MessageCircle, Youtube, Instagram, X } from 'lucide-react';
+import { ExternalLink, MessageCircle, Youtube, Instagram, X, CheckCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { WhopCheckoutEmbed } from '@whop/checkout/react';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { db, app } from '../../config/firebase';
+import { useAuth } from '../../context/AuthContext';
+
+// ─── Product definitions ────────────────────────────────────────────────────
+
+const PLAN_WORKSHOP = 'plan_NDWT8LrloUb7h';
+const PLAN_CALL     = 'plan_MEYR5hBmnpmtn';
+
+// TODO: Replace with the real WhatsApp invite link from Mel
+const WORKSHOP_WHATSAPP_LINK = 'https://chat.whatsapp.com/REPLACE_WITH_REAL_LINK';
 
 const PRODUCTS = [
   {
-    planId: 'plan_MEYR5hBmnpmtn',
+    planId: PLAN_CALL,
     title: '1:1 Trading Kickstart Call',
     subtitle: 'with Mel — 60 minutes',
     price: '$97',
     badge: 'One-time',
+    learnMoreUrl: 'https://whop.com/moms-who-trade/1-1-trading-kickstart-call-with-mel/',
     accent: '#7C3AED',
     bgGradient: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)',
     emoji: '📞',
@@ -23,11 +36,12 @@ const PRODUCTS = [
     cta: 'Book My Call',
   },
   {
-    planId: 'plan_NDWT8LrloUb7h',
+    planId: PLAN_WORKSHOP,
     title: 'First $500 in 30 Days',
     subtitle: 'Foundation Workshop',
     price: '$127',
     badge: 'Workshop',
+    learnMoreUrl: 'https://whop.com/moms-who-trade/first-500-in-30-days-workshop/',
     accent: '#059669',
     bgGradient: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)',
     emoji: '🚀',
@@ -41,14 +55,67 @@ const PRODUCTS = [
   },
 ] as const;
 
+// ─── Success modal content per product ──────────────────────────────────────
+
+const SUCCESS_CONTENT = {
+  [PLAN_CALL]: {
+    heading: 'Call booked. See you soon.',
+    body: 'Check your email for your Zoom link and prep notes from Mel. Come with your questions ready.',
+    primaryLabel: 'Got it',
+    primaryAction: 'close' as const,
+  },
+  [PLAN_WORKSHOP]: {
+    heading: "You're in. Let's get to work.",
+    body: "Check your email for your Whop login — your modules are waiting. Join the WhatsApp group below to meet your cohort and get Mel's first message.",
+    primaryLabel: 'Join WhatsApp Group',
+    primaryAction: 'whatsapp' as const,
+  },
+};
+
+// ─── Component ───────────────────────────────────────────────────────────────
+
 export function CommunityTab() {
-  const [activePlanId, setActivePlanId] = useState<string | null>(null);
+  const { user } = useAuth();
+  const [activePlanId, setActivePlanId]   = useState<string | null>(null);
+  const [successPlanId, setSuccessPlanId] = useState<string | null>(null);
 
-  const activeProduct = PRODUCTS.find(p => p.planId === activePlanId);
+  const activeProduct  = PRODUCTS.find(p => p.planId === activePlanId);
+  const successContent = successPlanId ? SUCCESS_CONTENT[successPlanId as keyof typeof SUCCESS_CONTENT] : null;
 
-  function handleComplete() {
+  // Called by WhopCheckoutEmbed when payment completes
+  async function handlePurchaseComplete(plan_id: string) {
+    // Close checkout sheet, open success modal
     setActivePlanId(null);
-    toast.success('Payment complete! Check your email for next steps.');
+    setSuccessPlanId(plan_id);
+
+    if (!user) return;
+
+    // ── Firestore update ──────────────────────────────────────────────────
+    const isWorkshop = plan_id === PLAN_WORKSHOP;
+    const firestoreData = isWorkshop
+      ? { isPaidUser: true, purchasedWorkshop: true, workshopPurchaseDate: serverTimestamp() }
+      : { isPaidUser: true, purchasedCall: true, callPurchaseDate: serverTimestamp() };
+
+    setDoc(doc(db, 'users', user.uid), firestoreData, { merge: true }).catch(() => {
+      // Silent — don't block user
+    });
+
+    // ── Ghost Admin label sync (via Cloud Function) ───────────────────────
+    // NOTE: This requires the 'addGhostLabel' Cloud Function to be deployed.
+    // See functions/ folder for setup instructions.
+    const label = isWorkshop ? 'workshop-buyer' : 'call-buyer';
+    try {
+      const functions = getFunctions(app);
+      const addGhostLabel = httpsCallable(functions, 'addGhostLabel');
+      addGhostLabel({ email: user.email, label });
+    } catch {
+      // Silent — don't block user
+    }
+  }
+
+  function closeSuccessModal() {
+    setSuccessPlanId(null);
+    toast.success('Welcome aboard! Check your email for next steps.');
   }
 
   return (
@@ -111,14 +178,26 @@ export function CommunityTab() {
               className="rounded-card shadow-sm overflow-hidden"
               style={{ background: product.bgGradient }}
             >
-              {/* Card top bar */}
+              {/* Badge row */}
               <div className="flex items-center justify-between px-6 pt-5 pb-1">
-                <span
-                  className="text-xs font-semibold px-2.5 py-0.5 rounded-full text-white"
-                  style={{ background: product.accent }}
-                >
-                  {product.badge}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span
+                    className="text-xs font-semibold px-2.5 py-0.5 rounded-full text-white"
+                    style={{ background: product.accent }}
+                  >
+                    {product.badge}
+                  </span>
+                  <a
+                    href={product.learnMoreUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs font-semibold px-2.5 py-0.5 rounded-full border transition-colors hover:opacity-80 flex items-center gap-1"
+                    style={{ borderColor: product.accent, color: product.accent }}
+                  >
+                    Learn More
+                    <ExternalLink size={10} />
+                  </a>
+                </div>
                 <span className="text-2xl font-bold" style={{ color: product.accent }}>
                   {product.price}
                 </span>
@@ -200,7 +279,7 @@ export function CommunityTab() {
         </div>
       </div>
 
-      {/* Checkout Modal */}
+      {/* ── Checkout modal (slide-up sheet) ───────────────────────────────────── */}
       <AnimatePresence>
         {activePlanId && (
           <motion.div
@@ -217,7 +296,6 @@ export function CommunityTab() {
               className="flex flex-col bg-white rounded-t-2xl mt-auto"
               style={{ height: '92dvh' }}
             >
-              {/* Modal header */}
               <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
                 <div>
                   <p className="font-bold text-text-primary text-base leading-tight">
@@ -233,14 +311,74 @@ export function CommunityTab() {
                 </button>
               </div>
 
-              {/* Checkout embed */}
               <div className="flex-1 overflow-auto">
                 <WhopCheckoutEmbed
                   planId={activePlanId}
                   theme="light"
                   skipRedirect
-                  onComplete={handleComplete}
+                  onComplete={handlePurchaseComplete}
                 />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Success modal ─────────────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {successPlanId && successContent && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 px-4 pb-8"
+          >
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0, y: 40 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.92, opacity: 0, y: 40 }}
+              transition={{ type: 'spring', damping: 24, stiffness: 260 }}
+              className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl"
+            >
+              <div className="flex flex-col items-center text-center gap-4">
+                <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center">
+                  <CheckCircle size={30} className="text-green-600" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-text-primary mb-2">{successContent.heading}</h2>
+                  <p className="text-text-secondary text-sm leading-relaxed">{successContent.body}</p>
+                </div>
+                <div className="w-full flex flex-col gap-3 mt-1">
+                  {successContent.primaryAction === 'whatsapp' ? (
+                    <>
+                      <a
+                        href={WORKSHOP_WHATSAPP_LINK}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={closeSuccessModal}
+                        className="flex items-center justify-center gap-2 w-full bg-[#25D366] text-white rounded-pill px-6 py-4 font-semibold min-h-[52px]"
+                      >
+                        <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white flex-shrink-0">
+                          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                        </svg>
+                        Join WhatsApp Group
+                      </a>
+                      <button
+                        onClick={closeSuccessModal}
+                        className="text-text-secondary text-sm font-medium py-2"
+                      >
+                        Go to my dashboard
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={closeSuccessModal}
+                      className="flex items-center justify-center w-full bg-accent-primary text-white rounded-pill px-6 py-4 font-semibold min-h-[52px]"
+                    >
+                      {successContent.primaryLabel}
+                    </button>
+                  )}
+                </div>
               </div>
             </motion.div>
           </motion.div>

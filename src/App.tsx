@@ -18,8 +18,12 @@ function AppRoutes() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-bg-primary flex items-center justify-center">
-        <LoadingSpinner size="lg" />
+      <div className="min-h-screen bg-bg-primary flex flex-col items-center justify-center gap-5">
+        <img src="/icon.svg" alt="Moms Who Trade" className="w-24 h-24" />
+        <div className="flex flex-col items-center gap-3">
+          <LoadingSpinner size="md" />
+          <p className="text-text-secondary text-sm font-medium">Getting everything ready...</p>
+        </div>
       </div>
     );
   }
