@@ -41,6 +41,9 @@ jobs:
       - name: Create functions env file
         run: echo "GHOST_ADMIN_API_KEY=${{ secrets.GHOST_ADMIN_API_KEY }}" > functions/.env
 
+      - name: Build Cloud Functions
+        run: cd functions && npm run build
+
       - name: Deploy Cloud Functions
         run: |
           echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > /tmp/sa.json
