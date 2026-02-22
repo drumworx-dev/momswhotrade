@@ -8,15 +8,17 @@ import { Button } from '../shared/Button';
 import { compoundBalance } from '../../utils/calculations';
 import { formatCurrency } from '../../utils/formatters';
 
-const ghostFunctions = getFunctions(app);
+const ghostFunctions = getFunctions(app, 'us-central1');
 const addGhostLabelFn = httpsCallable(ghostFunctions, 'addGhostLabel');
 
 /** Creates the Ghost member (via secure cloud function). Always called on onboarding complete. */
 async function ensureGhostMember(email: string) {
+  console.log('[Ghost] calling addGhostLabel for', email);
   try {
-    await addGhostLabelFn({ email, label: 'Free Member' });
-  } catch {
-    // Silent — don't block onboarding
+    const result = await addGhostLabelFn({ email, label: 'Free Member' });
+    console.log('[Ghost] member created successfully:', result.data);
+  } catch (err: any) {
+    console.error('[Ghost] addGhostLabel failed — code:', err?.code, 'message:', err?.message, err);
   }
 }
 
@@ -56,8 +58,8 @@ export function OnboardingFlow() {
   // Called from step 5 — handles email consent then completes onboarding
   async function handleEmailConsent(consent: boolean) {
     if (user?.email) {
-      // Always create them as a Ghost member so they appear in the Ghost admin
-      ensureGhostMember(user.email); // fire-and-forget
+      // Await so any error shows in the console before the screen transitions
+      await ensureGhostMember(user.email);
       // Only subscribe to newsletter emails if they explicitly consented
       if (consent) subscribeToGhostNewsletter(user.email); // fire-and-forget
     }
