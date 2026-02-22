@@ -6,6 +6,18 @@ import { Button } from '../shared/Button';
 import { compoundBalance } from '../../utils/calculations';
 import { formatCurrency } from '../../utils/formatters';
 
+async function subscribeToGhost(email: string) {
+  try {
+    await fetch('https://momswhotrade.co/members/api/send-magic-link/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, emailType: 'subscribe' }),
+    });
+  } catch {
+    // Silent — don't block the user
+  }
+}
+
 export function OnboardingFlow() {
   const { user, updateUserProfile } = useAuth();
   const [step, setStep] = useState(0);
@@ -14,9 +26,9 @@ export function OnboardingFlow() {
   const [dailyPercent, setDailyPercent] = useState(1);
 
   const presets = [500, 1000, 2000, 5000];
-
   const projection30 = compoundBalance(1000, dailyPercent, 30) - 1000;
 
+  // Saves the core profile data and marks onboarding complete
   const handleComplete = async () => {
     await updateUserProfile({
       experience,
@@ -25,6 +37,25 @@ export function OnboardingFlow() {
       onboardingComplete: true,
     });
   };
+
+  // Called from step 5 — handles email consent then completes onboarding
+  async function handleEmailConsent(consent: boolean) {
+    await updateUserProfile({ emailConsent: consent });
+    if (consent && user?.email) {
+      subscribeToGhost(user.email); // fire-and-forget
+    }
+    await handleComplete();
+  }
+
+  // Step 4 "Start Exploring" button handler:
+  // If the user somehow already has emailConsent set (e.g. returning user), skip step 5.
+  function handleStep4Continue() {
+    if (user?.emailConsent !== undefined) {
+      handleComplete();
+    } else {
+      setStep(5);
+    }
+  }
 
   const steps = [
     // Step 0: Welcome
@@ -144,7 +175,7 @@ export function OnboardingFlow() {
       <Button onClick={() => setStep(4)} size="lg" fullWidth>Continue</Button>
     </div>,
 
-    // Step 4: Complete
+    // Step 4: You're all set + socials (navigates to step 5 instead of completing)
     <div key="complete" className="flex flex-col items-center text-center gap-6">
       <div className="text-6xl">🎉</div>
       <div>
@@ -181,19 +212,47 @@ export function OnboardingFlow() {
           Follow on Instagram
         </a>
       </div>
-      <Button onClick={handleComplete} size="lg" fullWidth variant="accent">
+      <Button onClick={handleStep4Continue} size="lg" fullWidth variant="accent">
         Start Exploring →
       </Button>
+    </div>,
+
+    // Step 5: Email consent (final step before entering app)
+    <div key="email-consent" className="flex flex-col items-center text-center gap-6">
+      <div className="text-5xl">✉️</div>
+      <div>
+        <h2 className="text-2xl font-bold text-text-primary mb-3">One last thing</h2>
+        <p className="text-text-secondary leading-relaxed">
+          Want weekly trade ideas and market updates from Mel sent straight to your inbox?
+          No spam. Just the stuff that actually helps you level up.
+        </p>
+      </div>
+      <div className="w-full flex flex-col gap-3">
+        <Button
+          onClick={() => handleEmailConsent(true)}
+          size="lg"
+          fullWidth
+          variant="accent"
+        >
+          Yes, keep me updated
+        </Button>
+        <button
+          onClick={() => handleEmailConsent(false)}
+          className="text-text-tertiary text-sm font-medium py-2 hover:text-text-secondary transition-colors"
+        >
+          Skip for now
+        </button>
+      </div>
     </div>,
   ];
 
   return (
     <div className="min-h-screen bg-bg-primary flex flex-col px-6 py-12">
       <div className="max-w-sm mx-auto w-full flex-1 flex flex-col">
-        {/* Progress dots */}
+        {/* Progress dots — shown for steps 1–5 */}
         {step > 0 && (
           <div className="flex justify-center gap-2 mb-8">
-            {[1, 2, 3, 4].map(i => (
+            {[1, 2, 3, 4, 5].map(i => (
               <div
                 key={i}
                 className={`h-2 rounded-full transition-all duration-300 ${
@@ -204,8 +263,8 @@ export function OnboardingFlow() {
           </div>
         )}
 
-        {/* Back button */}
-        {step > 0 && (
+        {/* Back button — hidden on email consent step (step 5) since it's the last gate */}
+        {step > 0 && step < 5 && (
           <button
             onClick={() => setStep(s => s - 1)}
             className="text-text-secondary text-sm mb-6 flex items-center gap-1 hover:text-text-primary transition-colors"
