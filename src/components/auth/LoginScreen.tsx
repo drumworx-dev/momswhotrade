@@ -251,13 +251,26 @@ export function LoginScreen() {
           )}
         </AnimatePresence>
 
-        {/* Terms */}
-        <p className="text-center text-xs text-text-tertiary leading-relaxed px-4 mt-6">
-          By signing up, you agree to receive marketing emails and accept our{' '}
-          <a href="#" className="text-accent-dark underline">Privacy Policy</a>
-          {' '}and{' '}
-          <a href="#" className="text-accent-dark underline">Terms of Service</a>
-        </p>
+        {/* Legal links */}
+        <div className="flex items-center justify-center gap-4 mt-6">
+          <a
+            href="https://www.momswhotrade.co/privacy-policy/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-text-tertiary underline hover:text-text-secondary transition-colors"
+          >
+            Privacy Policy
+          </a>
+          <span className="text-text-tertiary text-xs">·</span>
+          <a
+            href="https://www.momswhotrade.co/terms-and-coond/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-text-tertiary underline hover:text-text-secondary transition-colors"
+          >
+            Terms &amp; Conditions
+          </a>
+        </div>
       </motion.div>
     </div>
   );
