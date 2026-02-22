@@ -1,6 +1,5 @@
-import { useMemo, useEffect } from 'react';
-
-const KEY = 'mwt_login_dates';
+import { useMemo } from 'react';
+import { useAuth } from '../context/AuthContext';
 
 /** Local-time date string — avoids UTC timezone drift */
 function localDateStr(d: Date = new Date()): string {
@@ -13,18 +12,7 @@ function localDateStr(d: Date = new Date()): string {
 /** Parse a YYYY-MM-DD string as local midnight (not UTC) */
 function parseLocalDate(s: string): Date {
   const [y, m, d] = s.split('-').map(Number);
-  return new Date(y, m - 1, d); // local midnight
-}
-
-function recordToday(): void {
-  const today = localDateStr();
-  const stored = localStorage.getItem(KEY);
-  const dates: string[] = stored ? JSON.parse(stored) : [];
-  if (!dates.includes(today)) {
-    dates.push(today);
-    dates.sort();
-    localStorage.setItem(KEY, JSON.stringify(dates));
-  }
+  return new Date(y, m - 1, d);
 }
 
 export interface LoginStreak {
@@ -34,35 +22,26 @@ export interface LoginStreak {
   color: 'green' | 'yellow' | 'red';
 }
 
+/**
+ * Derives the login-streak from the user's Firestore loginDates array.
+ * Data is per-user and syncs across all browsers, devices, and the PWA.
+ */
 export function useLoginStreak(): LoginStreak {
-  // Record synchronously so the memo below always sees today
+  const { user } = useAuth();
   const today = localDateStr();
-  if (typeof window !== 'undefined') {
-    const stored = localStorage.getItem(KEY);
-    const dates: string[] = stored ? JSON.parse(stored) : [];
-    if (!dates.includes(today)) {
-      dates.push(today);
-      dates.sort();
-      localStorage.setItem(KEY, JSON.stringify(dates));
-    }
-  }
-
-  // Keep recording in an effect for any subsequent visits within the same session
-  useEffect(() => { recordToday(); }, []);
 
   return useMemo(() => {
-    const stored = localStorage.getItem(KEY);
-    const dates: string[] = stored ? JSON.parse(stored) : [today];
+    const dates: string[] = user?.loginDates ?? [today];
 
-    const todayLocal   = parseLocalDate(today).getTime();      // local midnight ms
-    const firstLocal   = parseLocalDate(dates[0]).getTime();   // local midnight ms
-    const daysSinceFirst = Math.round((todayLocal - firstLocal) / 86_400_000) + 1; // inclusive
+    const todayLocal     = parseLocalDate(today).getTime();
+    const firstLocal     = parseLocalDate(dates[0]).getTime();
+    const daysSinceFirst = Math.round((todayLocal - firstLocal) / 86_400_000) + 1;
     const denominator    = Math.min(daysSinceFirst, 7);
 
-    // Build window of the last `denominator` LOCAL days up to and including today
+    // Build a set of the last `denominator` local days up to and including today
     const windowSet = new Set<string>();
     for (let i = 0; i < denominator; i++) {
-      const d = new Date(todayLocal - i * 86_400_000); // subtract whole days in ms
+      const d = new Date(todayLocal - i * 86_400_000);
       windowSet.add(localDateStr(d));
     }
 
@@ -72,5 +51,5 @@ export function useLoginStreak(): LoginStreak {
       percent >= 80 ? 'green' : percent > 50 ? 'yellow' : 'red';
 
     return { activeDays, denominator, percent, color };
-  }, [today]);
+  }, [user?.loginDates, today]);
 }

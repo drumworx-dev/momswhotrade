@@ -1,12 +1,27 @@
 import { useState } from 'react';
 import { Youtube, Instagram } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { useAuth } from '../../context/AuthContext';
+import { app } from '../../config/firebase';
 import { Button } from '../shared/Button';
 import { compoundBalance } from '../../utils/calculations';
 import { formatCurrency } from '../../utils/formatters';
 
-async function subscribeToGhost(email: string) {
+const ghostFunctions = getFunctions(app);
+const addGhostLabelFn = httpsCallable(ghostFunctions, 'addGhostLabel');
+
+/** Creates the Ghost member (via secure cloud function). Always called on onboarding complete. */
+async function ensureGhostMember(email: string) {
+  try {
+    await addGhostLabelFn({ email, label: 'Free Member' });
+  } catch {
+    // Silent — don't block onboarding
+  }
+}
+
+/** Opts the user into the Ghost newsletter (sends magic-link email). Only if they consent. */
+async function subscribeToGhostNewsletter(email: string) {
   try {
     await fetch('https://momswhotrade.co/members/api/send-magic-link/', {
       method: 'POST',
@@ -40,12 +55,13 @@ export function OnboardingFlow() {
 
   // Called from step 5 — handles email consent then completes onboarding
   async function handleEmailConsent(consent: boolean) {
-    if (consent && user?.email) {
-      subscribeToGhost(user.email); // fire-and-forget
+    if (user?.email) {
+      // Always create them as a Ghost member so they appear in the Ghost admin
+      ensureGhostMember(user.email); // fire-and-forget
+      // Only subscribe to newsletter emails if they explicitly consented
+      if (consent) subscribeToGhostNewsletter(user.email); // fire-and-forget
     }
     // Merge into one call so onboardingComplete is set atomically with emailConsent.
-    // Previously two sequential calls meant a Firestore error on the first would
-    // silently prevent the second (which sets onboardingComplete: true) from running.
     await updateUserProfile({
       emailConsent: consent,
       experience,

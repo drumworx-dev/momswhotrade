@@ -10,7 +10,7 @@ import {
   updateProfile,
   type User as FirebaseUser,
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, arrayUnion, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
 
 export interface AppUser {
@@ -24,6 +24,15 @@ export interface AppUser {
   dailyProfitGoalPercent?: number;
   onboardingComplete?: boolean;
   emailConsent?: boolean;
+  loginDates?: string[]; // YYYY-MM-DD, stored in Firestore — syncs across all devices
+}
+
+/** Local-time date string — avoids UTC timezone drift */
+function localDateStr(d: Date = new Date()): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 interface AuthContextType {
@@ -42,6 +51,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 async function upsertUser(firebaseUser: FirebaseUser, provider: string): Promise<AppUser> {
   const ref = doc(db, 'users', firebaseUser.uid);
   const snap = await getDoc(ref);
+  const today = localDateStr();
 
   if (!snap.exists()) {
     const newUser: AppUser = {
@@ -51,12 +61,18 @@ async function upsertUser(firebaseUser: FirebaseUser, provider: string): Promise
       photoURL: firebaseUser.photoURL || undefined,
       provider,
       onboardingComplete: false,
+      loginDates: [today],
     };
     await setDoc(ref, { ...newUser, createdAt: serverTimestamp(), lastLoginAt: serverTimestamp() });
     return newUser;
   } else {
-    await setDoc(ref, { lastLoginAt: serverTimestamp() }, { merge: true });
-    return snap.data() as AppUser;
+    // arrayUnion adds today's date only if not already present — idempotent
+    await setDoc(ref, { lastLoginAt: serverTimestamp(), loginDates: arrayUnion(today) }, { merge: true });
+    const data = snap.data() as AppUser;
+    // Merge today into the returned value (arrayUnion is server-side; snap is pre-update)
+    const existing = data.loginDates ?? [];
+    const loginDates = existing.includes(today) ? existing : [...existing, today].sort();
+    return { ...data, loginDates };
   }
 }
 
@@ -67,6 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
+        setLoading(true); // show splash while we fetch the Firestore profile
         const provider = firebaseUser.providerData[0]?.providerId || 'google';
         const appUser = await upsertUser(firebaseUser, provider);
         setUser(appUser);
