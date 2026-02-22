@@ -68,11 +68,20 @@ async function upsertUser(firebaseUser: FirebaseUser, provider: string): Promise
   } else {
     // arrayUnion adds today's date only if not already present — idempotent
     await setDoc(ref, { lastLoginAt: serverTimestamp(), loginDates: arrayUnion(today) }, { merge: true });
-    const data = snap.data() as AppUser;
+    const data = snap.data() as Partial<AppUser>;
     // Merge today into the returned value (arrayUnion is server-side; snap is pre-update)
     const existing = data.loginDates ?? [];
     const loginDates = existing.includes(today) ? existing : [...existing, today].sort();
-    return { ...data, loginDates };
+    // Always stamp uid/email/displayName from Firebase Auth — the Firestore doc may be
+    // a partial record written during sign-up before all fields were available.
+    return {
+      ...data,
+      uid: firebaseUser.uid,
+      email: firebaseUser.email || '',
+      displayName: firebaseUser.displayName || data.displayName || 'Mom',
+      provider,
+      loginDates,
+    } as AppUser;
   }
 }
 
@@ -112,8 +121,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUpWithEmail = async (email: string, password: string, displayName: string) => {
     const credential = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(credential.user, { displayName });
-    // Ensure Firestore has correct displayName regardless of onAuthStateChanged timing
-    await setDoc(doc(db, 'users', credential.user.uid), { displayName, provider: 'password' }, { merge: true });
+    // Ensure Firestore has complete fields regardless of onAuthStateChanged timing
+    await setDoc(doc(db, 'users', credential.user.uid), {
+      uid: credential.user.uid,
+      email: credential.user.email || '',
+      displayName,
+      provider: 'password',
+    }, { merge: true });
   };
 
   const signInWithEmail = async (email: string, password: string) => {
