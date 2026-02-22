@@ -1,112 +1,102 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { X, ImageDown, Share2 } from 'lucide-react';
-import html2canvas from 'html2canvas';
 import type { Trade } from '../../types';
-import { PnLShareCard } from './PnLShareCard';
+import { generatePnLCard } from './generatePnLCard';
 
 interface ShareCardModalProps {
   trade: Trade;
   onClose: () => void;
 }
 
-async function captureCard(el: HTMLDivElement): Promise<Blob> {
-  const canvas = await html2canvas(el, {
-    scale: 3, // → 1200×1200 crisp PNG
-    useCORS: true,
-    backgroundColor: null,
-    logging: false,
-    allowTaint: false,
-  });
+/** True on iOS Safari / Chrome iOS where <a download> is broken */
+function isIOS() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent);
+}
+
+async function getExportBlob(trade: Trade): Promise<Blob> {
+  const canvas = await generatePnLCard(trade, 3); // 1200×1200
   return new Promise((resolve, reject) => {
     canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error('Canvas export failed'))),
+      (b) => (b ? resolve(b) : reject(new Error('Canvas toBlob failed'))),
       'image/png',
     );
   });
 }
 
-/** True on iOS Safari / Chrome iOS — <a download> is broken there */
-function isIOS() {
-  return (
-    typeof navigator !== 'undefined' &&
-    /iPad|iPhone|iPod/.test(navigator.userAgent)
-  );
+function triggerDownload(blob: Blob, fileName: string) {
+  const url = URL.createObjectURL(blob);
+  const a   = document.createElement('a');
+  a.href     = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 export function ShareCardModal({ trade, onClose }: ShareCardModalProps) {
-  const cardRef = useRef<HTMLDivElement>(null);
+  const previewRef  = useRef<HTMLCanvasElement>(null);
   const [status, setStatus] = useState<'idle' | 'saving' | 'sharing'>('idle');
+  const [preview, setPreview] = useState(false);
 
   const tokenName = (trade.token || 'Trade').toUpperCase();
   const fileName  = `MWT-${tokenName}-${trade.direction?.toUpperCase()}-PnL.png`;
 
-  /** Save to Photos on iOS via share sheet; direct download on desktop */
+  // Draw preview canvas once on mount (scale=1 → 400×400)
+  useEffect(() => {
+    let cancelled = false;
+    generatePnLCard(trade, 1).then((offscreen) => {
+      if (cancelled || !previewRef.current) return;
+      const ctx = previewRef.current.getContext('2d')!;
+      ctx.drawImage(offscreen, 0, 0);
+      setPreview(true);
+    });
+    return () => { cancelled = true; };
+  }, [trade]);
+
   async function handleSave() {
-    if (!cardRef.current || status !== 'idle') return;
+    if (status !== 'idle') return;
     setStatus('saving');
     try {
-      const blob = await captureCard(cardRef.current);
+      const blob = await getExportBlob(trade);
       const file = new File([blob], fileName, { type: 'image/png' });
 
       if (isIOS() && navigator.canShare?.({ files: [file] })) {
-        // On iOS the only way to land in Photos is the native share sheet
+        // iOS: share sheet → "Save Image" → Photos
+        // Send files only — no text/url so apps like Slack don't grab a link instead
         await navigator.share({ files: [file] });
       } else {
-        // Desktop / Android — trigger a normal download
-        const url = URL.createObjectURL(blob);
-        const a   = document.createElement('a');
-        a.href     = url;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        triggerDownload(blob, fileName);
       }
     } catch (err) {
-      if (err instanceof Error && err.name !== 'AbortError') {
-        console.error('Save failed:', err);
-      }
+      if (err instanceof Error && err.name !== 'AbortError') console.error(err);
     } finally {
       setStatus('idle');
     }
   }
 
-  /** Native share with caption — works on both iOS and Android */
   async function handleShare() {
-    if (!cardRef.current || status !== 'idle') return;
+    if (status !== 'idle') return;
     setStatus('sharing');
     try {
-      const blob = await captureCard(cardRef.current);
+      const blob = await getExportBlob(trade);
       const file = new File([blob], fileName, { type: 'image/png' });
 
       if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: `${tokenName} Trade — Moms Who Trade`,
-          text: 'Check out my trade result 👇\nmomswhotrade.co',
-        });
+        // Files only — omitting title/text prevents apps from preferring a link
+        await navigator.share({ files: [file] });
       } else {
-        // Desktop fallback — just download
-        const url = URL.createObjectURL(blob);
-        const a   = document.createElement('a');
-        a.href     = url;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        triggerDownload(blob, fileName);
       }
     } catch (err) {
-      if (err instanceof Error && err.name !== 'AbortError') {
-        console.error('Share failed:', err);
-      }
+      if (err instanceof Error && err.name !== 'AbortError') console.error(err);
     } finally {
       setStatus('idle');
     }
   }
 
   const busy           = status !== 'idle';
-  const canNativeShare = typeof navigator !== 'undefined' && !!navigator.share;
+  const canNativeShare = !!navigator.share;
 
   return (
     <div
@@ -115,7 +105,6 @@ export function ShareCardModal({ trade, onClose }: ShareCardModalProps) {
     >
       <div className="relative w-full sm:w-auto bg-bg-primary rounded-t-[28px] sm:rounded-[28px] p-5 pb-safe flex flex-col items-center gap-5 shadow-lg">
 
-        {/* Close */}
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-text-tertiary hover:text-text-secondary p-1 rounded-full"
@@ -126,26 +115,35 @@ export function ShareCardModal({ trade, onClose }: ShareCardModalProps) {
 
         <h2 className="text-base font-bold text-text-primary pt-1">Share Your Trade</h2>
 
-        {/* Card preview */}
-        <div className="overflow-hidden rounded-[24px] shadow-md">
-          <PnLShareCard ref={cardRef} trade={trade} />
+        {/* Canvas preview — same drawing code as export, guaranteed match */}
+        <div
+          className="shadow-md"
+          style={{ borderRadius: 24, overflow: 'hidden', lineHeight: 0 }}
+        >
+          <canvas
+            ref={previewRef}
+            width={400}
+            height={400}
+            style={{
+              display: 'block',
+              width: 400,
+              height: 400,
+              opacity: preview ? 1 : 0,
+              transition: 'opacity 0.2s',
+            }}
+          />
         </div>
 
-        {/* Buttons */}
         <div className="flex gap-3 w-full max-w-[400px]">
-          {/* Save to Photos / Download */}
           <button
             onClick={handleSave}
             disabled={busy}
             className="flex-1 flex items-center justify-center gap-2 py-3 rounded-pill border-2 border-accent-primary text-accent-dark font-semibold text-sm disabled:opacity-50 transition-opacity active:scale-[0.98]"
           >
             <ImageDown size={16} />
-            {status === 'saving'
-              ? 'Saving…'
-              : isIOS() ? 'Save to Photos' : 'Download PNG'}
+            {status === 'saving' ? 'Saving…' : isIOS() ? 'Save to Photos' : 'Download PNG'}
           </button>
 
-          {/* Share (native share sheet) */}
           {canNativeShare && (
             <button
               onClick={handleShare}
@@ -160,7 +158,7 @@ export function ShareCardModal({ trade, onClose }: ShareCardModalProps) {
 
         <p className="text-xs text-text-tertiary text-center leading-relaxed">
           {isIOS()
-            ? 'Tap "Save to Photos" then post on Instagram, X, Facebook or LinkedIn'
+            ? 'Save to Photos then post on Instagram, X, Facebook or LinkedIn'
             : 'Download the PNG then post on Instagram, X, Facebook or LinkedIn'}
         </p>
       </div>
