@@ -6,7 +6,6 @@ const BAR_H  = 4;
 const HEAD_H = 64;
 const FOOT_H = 48;
 const BODY_Y  = BAR_H + HEAD_H;          // 68
-const BODY_H  = CARD - BODY_Y - FOOT_H;  // 284
 const FOOT_Y  = CARD - FOOT_H;           // 352
 const PAD     = 22;
 
@@ -155,17 +154,13 @@ export async function generatePnLCard(
 
   // ── 7. Body ──────────────────────────────────────────────────────────────
   // Layout constants (all absolute from top of canvas):
-  // Asset name top:     86   (BODY_Y + 18)
-  // Asset name center:  86 + 18 = 104  (font 36, textBaseline top → draw at y=86)
-  // Pills top:          132  (86 + 36 + 10)
-  // Pills center:       144  (132 + 12)
-  // Pills bottom:       156  (132 + 24)
-  // P&L block top:      211  (FOOT_Y - 141 = 352 - 141)
-  //   arrow+% row center: 211 + 28 = 239  (row height 56)
-  //   "TOTAL..." center:  239 + 28 + 6 + 5 = 278
-  //   divider:            278 + 5 + 14 = 297
-  //   price labels top:   297 + 1 + 12 = 310
-  //   price values top:   310 + 9 + 5  = 324
+  // Asset name top:        86  (BODY_Y + 18)
+  // Pills top:            132  (86 + 36 + 10)
+  // P&L row center:       239  (FOOT_Y - 141 + 28)
+  // "TOTAL..." center:    278
+  // Divider:              297
+  // Price labels top:     310
+  // Price values top:     324
 
   const NAME_Y  = BODY_Y + 18;          // 86
   const PILLS_Y = NAME_Y + 36 + 10;     // 132
