@@ -44,6 +44,7 @@ function ghostToken(): string {
 
 interface GhostMember {
   id: string;
+  name: string;
   labels: Array<{ id: string; name: string }>;
   newsletters: Array<{ id: string }>;
 }
@@ -67,10 +68,11 @@ export const addGhostLabel = onCall(async (request) => {
     throw new HttpsError('unauthenticated', 'Must be signed in.');
   }
 
-  const { email, label, subscribeToNewsletter } = request.data as {
+  const { email, label, subscribeToNewsletter, name } = request.data as {
     email?: string;
     label?: string;
     subscribeToNewsletter?: boolean;
+    name?: string;
   };
   if (!email || !label) {
     throw new HttpsError('invalid-argument', 'email and label are required.');
@@ -103,6 +105,7 @@ export const addGhostLabel = onCall(async (request) => {
   // ── 2a. Member not found → create with label (and newsletter if consented) ─
   if (!existingMember) {
     const newMember: Record<string, unknown> = { email, labels: [{ name: label }] };
+    if (name) newMember.name = name;
     if (newsletterId) newMember.newsletters = [{ id: newsletterId }];
 
     const createRes = await fetch(`${GHOST_API_URL}/members/`, {
@@ -125,11 +128,14 @@ export const addGhostLabel = onCall(async (request) => {
     ? existingMember.newsletters.some((n) => n.id === newsletterId)
     : true;
 
-  if (!needsLabel && alreadySubscribed) {
+  const needsName = !!name && !existingMember.name;
+
+  if (!needsLabel && alreadySubscribed && !needsName) {
     return { success: true, action: 'already_tagged' };
   }
 
   const patch: Record<string, unknown> = {};
+  if (needsName) patch.name = name;
   if (needsLabel) patch.labels = [...existingLabels, { name: label }];
   if (!alreadySubscribed && newsletterId) {
     patch.newsletters = [...existingMember.newsletters.map((n) => ({ id: n.id })), { id: newsletterId }];
