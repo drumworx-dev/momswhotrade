@@ -1,17 +1,67 @@
-import { ExternalLink, MessageCircle, Youtube, Instagram } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { useState } from 'react';
+import { ExternalLink, MessageCircle, Youtube, Instagram, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import toast from 'react-hot-toast';
+import { WhopCheckoutEmbed } from '@whop/checkout/react';
+
+const PRODUCTS = [
+  {
+    planId: 'plan_MEYR5hBmnpmtn',
+    title: '1:1 Trading Kickstart Call',
+    subtitle: 'with Mel — 60 minutes',
+    price: '$97',
+    badge: 'One-time',
+    accent: '#7C3AED',
+    bgGradient: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)',
+    emoji: '📞',
+    bullets: [
+      '60-min private call with Mel',
+      'Your personalized trading plan',
+      'Chart analysis & strategy deep-dive',
+      'Recording sent after the call',
+    ],
+    cta: 'Book My Call',
+  },
+  {
+    planId: 'plan_NDWT8LrloUb7h',
+    title: 'First $500 in 30 Days',
+    subtitle: 'Foundation Workshop',
+    price: '$127',
+    badge: 'Workshop',
+    accent: '#059669',
+    bgGradient: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)',
+    emoji: '🚀',
+    bullets: [
+      'Step-by-step beginner curriculum',
+      'Live workshop sessions with Mel',
+      'Clear action plan to your first $500',
+      'Lifetime access to all recordings',
+    ],
+    cta: 'Join the Workshop',
+  },
+] as const;
 
 export function CommunityTab() {
+  const [activePlanId, setActivePlanId] = useState<string | null>(null);
+
+  const activeProduct = PRODUCTS.find(p => p.planId === activePlanId);
+
+  function handleComplete() {
+    setActivePlanId(null);
+    toast.success('Payment complete! Check your email for next steps.');
+  }
+
   return (
     <div className="flex flex-col h-full bg-bg-primary">
       {/* Header */}
       <div className="bg-white px-4 pb-4 sticky top-0 z-30 shadow-sm page-header">
-        <h1 className="text-xl font-bold text-text-primary">Community</h1>
-        <p className="text-text-secondary text-sm">Connect with Moms Who Trade</p>
+        <h1 className="text-xl font-bold text-text-primary">Level Up</h1>
+        <p className="text-text-secondary text-sm">Grow with Moms Who Trade</p>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-4 pb-32">
         <div className="max-w-lg mx-auto flex flex-col gap-4">
+
           {/* Telegram Card */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -51,53 +101,63 @@ export function CommunityTab() {
             </a>
           </motion.div>
 
-          {/* Coaching Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="bg-white rounded-card shadow-sm p-6"
-          >
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-accent-primary rounded-xl flex items-center justify-center">
-                <span className="text-white text-xl font-bold">M</span>
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-text-primary">1:1 Coaching with Mel</h2>
-                <p className="text-text-secondary text-sm">Personalized trading mentorship</p>
-              </div>
-            </div>
-
-            <ul className="flex flex-col gap-2 mb-5">
-              {[
-                'Your personalized onboarding',
-                'A customized trading plan',
-                'Weekly progress check-ins',
-                'Strategy & chart deep-dives',
-              ].map(item => (
-                <li key={item} className="flex items-center gap-2 text-sm text-text-secondary">
-                  <span className="text-accent-success">✓</span>
-                  {item}
-                </li>
-              ))}
-            </ul>
-
-            <a
-              href="https://whop.com/moms-who-trade/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 w-full bg-accent-primary text-white rounded-pill px-6 py-4 font-semibold shadow-sm hover:bg-accent-dark hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 min-h-[52px]"
+          {/* Whop Product Cards */}
+          {PRODUCTS.map((product, i) => (
+            <motion.div
+              key={product.planId}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 + i * 0.05 }}
+              className="rounded-card shadow-sm overflow-hidden"
+              style={{ background: product.bgGradient }}
             >
-              Book Now →
-              <ExternalLink size={16} />
-            </a>
-          </motion.div>
+              {/* Card top bar */}
+              <div className="flex items-center justify-between px-6 pt-5 pb-1">
+                <span
+                  className="text-xs font-semibold px-2.5 py-0.5 rounded-full text-white"
+                  style={{ background: product.accent }}
+                >
+                  {product.badge}
+                </span>
+                <span className="text-2xl font-bold" style={{ color: product.accent }}>
+                  {product.price}
+                </span>
+              </div>
+
+              <div className="px-6 pb-6">
+                <div className="flex items-center gap-3 mb-3 mt-2">
+                  <span className="text-3xl">{product.emoji}</span>
+                  <div>
+                    <h2 className="text-lg font-bold text-text-primary leading-tight">{product.title}</h2>
+                    <p className="text-text-secondary text-sm">{product.subtitle}</p>
+                  </div>
+                </div>
+
+                <ul className="flex flex-col gap-2 mb-5">
+                  {product.bullets.map(item => (
+                    <li key={item} className="flex items-center gap-2 text-sm text-text-secondary">
+                      <span className="font-bold" style={{ color: product.accent }}>✓</span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+
+                <button
+                  onClick={() => setActivePlanId(product.planId)}
+                  className="flex items-center justify-center w-full text-white rounded-pill px-6 py-4 font-semibold shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 min-h-[52px]"
+                  style={{ background: product.accent }}
+                >
+                  {product.cta} →
+                </button>
+              </div>
+            </motion.div>
+          ))}
 
           {/* Follow Us on Socials */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 }}
+            transition={{ delay: 0.2 }}
             className="bg-white rounded-card shadow-sm p-6"
           >
             <h2 className="text-lg font-bold text-text-primary mb-4">Follow Us</h2>
@@ -130,7 +190,7 @@ export function CommunityTab() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
+            transition={{ delay: 0.25 }}
             className="bg-surface-dim rounded-card p-5 text-center border-2 border-dashed border-gray-200"
           >
             <MessageCircle size={28} className="text-text-tertiary mx-auto mb-2" />
@@ -139,6 +199,53 @@ export function CommunityTab() {
           </motion.div>
         </div>
       </div>
+
+      {/* Checkout Modal */}
+      <AnimatePresence>
+        {activePlanId && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex flex-col bg-black/60"
+          >
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+              className="flex flex-col bg-white rounded-t-2xl mt-auto"
+              style={{ height: '92dvh' }}
+            >
+              {/* Modal header */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
+                <div>
+                  <p className="font-bold text-text-primary text-base leading-tight">
+                    {activeProduct?.title}
+                  </p>
+                  <p className="text-text-tertiary text-xs">{activeProduct?.subtitle}</p>
+                </div>
+                <button
+                  onClick={() => setActivePlanId(null)}
+                  className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+                >
+                  <X size={18} className="text-text-secondary" />
+                </button>
+              </div>
+
+              {/* Checkout embed */}
+              <div className="flex-1 overflow-auto">
+                <WhopCheckoutEmbed
+                  planId={activePlanId}
+                  theme="light"
+                  skipRedirect
+                  onComplete={handleComplete}
+                />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

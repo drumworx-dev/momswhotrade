@@ -6,7 +6,7 @@ const navItems = [
   { to: '/calculator', label: 'Calculator', icon: Calculator },
   { to: '/journal', label: 'Journal', icon: BookOpen },
   { to: '/goals', label: 'Goals', icon: Target },
-  { to: '/community', label: 'Community', icon: Users },
+  { to: '/community', label: 'Level Up', icon: Users },
 ];
 
 export function BottomNav() {
