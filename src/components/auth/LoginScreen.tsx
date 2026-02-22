@@ -143,45 +143,51 @@ export function LoginScreen() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.2 }}
-              className="flex flex-col gap-3"
             >
-              <h2 className="text-lg font-bold text-text-primary mb-1">Welcome back</h2>
-              <input
-                type="email"
-                placeholder="Email address"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                className={inputClass}
-                autoComplete="email"
-              />
-              <input
-                type="password"
-                placeholder="Password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleSignIn()}
-                className={inputClass}
-                autoComplete="current-password"
-              />
-              <button
-                onClick={handleSignIn}
-                disabled={loading}
-                className="w-full py-4 rounded-pill font-semibold bg-text-primary text-white hover:opacity-90 transition-all disabled:opacity-50 min-h-[56px]"
+              <form
+                className="flex flex-col gap-3"
+                onSubmit={e => { e.preventDefault(); handleSignIn(); }}
+                noValidate
               >
-                {loading ? 'Signing in...' : 'Sign In'}
-              </button>
-              <button
-                onClick={() => setMode('social')}
-                className="text-sm text-text-secondary hover:text-text-primary text-center py-1 transition-colors"
-              >
-                ← Back to all sign-in options
-              </button>
-              <button
-                onClick={() => { setMode('signup'); }}
-                className="text-sm text-accent-primary text-center hover:opacity-80 transition-opacity"
-              >
-                Don't have an account? Create one
-              </button>
+                <h2 className="text-lg font-bold text-text-primary mb-1">Welcome back</h2>
+                <input
+                  type="email"
+                  placeholder="Email address"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  className={inputClass}
+                  autoComplete="email"
+                />
+                <input
+                  type="password"
+                  placeholder="Password"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  className={inputClass}
+                  autoComplete="current-password"
+                />
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-4 rounded-pill font-semibold bg-text-primary text-white hover:opacity-90 transition-all disabled:opacity-50 min-h-[56px]"
+                >
+                  {loading ? 'Signing in...' : 'Sign In'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode('social')}
+                  className="text-sm text-text-secondary hover:text-text-primary text-center py-1 transition-colors"
+                >
+                  ← Back to all sign-in options
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setMode('signup'); }}
+                  className="text-sm text-accent-primary text-center hover:opacity-80 transition-opacity"
+                >
+                  Don't have an account? Create one
+                </button>
+              </form>
             </motion.div>
           )}
 
@@ -192,61 +198,67 @@ export function LoginScreen() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.2 }}
-              className="flex flex-col gap-3"
             >
-              <h2 className="text-lg font-bold text-text-primary mb-1">Create your account</h2>
-              <input
-                type="text"
-                placeholder="Your name"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                className={inputClass}
-                autoComplete="name"
-              />
-              <input
-                type="email"
-                placeholder="Email address"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                className={inputClass}
-                autoComplete="email"
-              />
-              <input
-                type="password"
-                placeholder="Password (min 6 characters)"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                className={inputClass}
-                autoComplete="new-password"
-              />
-              <input
-                type="password"
-                placeholder="Confirm password"
-                value={confirm}
-                onChange={e => setConfirm(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleSignUp()}
-                className={inputClass}
-                autoComplete="new-password"
-              />
-              <button
-                onClick={handleSignUp}
-                disabled={loading}
-                className="w-full py-4 rounded-pill font-semibold bg-text-primary text-white hover:opacity-90 transition-all disabled:opacity-50 min-h-[56px]"
+              <form
+                className="flex flex-col gap-3"
+                onSubmit={e => { e.preventDefault(); handleSignUp(); }}
+                noValidate
               >
-                {loading ? 'Creating account...' : 'Create Account'}
-              </button>
-              <button
-                onClick={() => setMode('social')}
-                className="text-sm text-text-secondary hover:text-text-primary text-center py-1 transition-colors"
-              >
-                ← Back to all sign-in options
-              </button>
-              <button
-                onClick={() => setMode('signin')}
-                className="text-sm text-accent-primary text-center hover:opacity-80 transition-opacity"
-              >
-                Already have an account? Sign in
-              </button>
+                <h2 className="text-lg font-bold text-text-primary mb-1">Create your account</h2>
+                <input
+                  type="text"
+                  placeholder="Your name"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  className={inputClass}
+                  autoComplete="name"
+                />
+                <input
+                  type="email"
+                  placeholder="Email address"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  className={inputClass}
+                  autoComplete="email"
+                />
+                <input
+                  type="password"
+                  placeholder="Password (min 6 characters)"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  className={inputClass}
+                  autoComplete="new-password"
+                />
+                <input
+                  type="password"
+                  placeholder="Confirm password"
+                  value={confirm}
+                  onChange={e => setConfirm(e.target.value)}
+                  className={inputClass}
+                  autoComplete="new-password"
+                />
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-4 rounded-pill font-semibold bg-text-primary text-white hover:opacity-90 transition-all disabled:opacity-50 min-h-[56px]"
+                >
+                  {loading ? 'Creating account...' : 'Create Account'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode('social')}
+                  className="text-sm text-text-secondary hover:text-text-primary text-center py-1 transition-colors"
+                >
+                  ← Back to all sign-in options
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode('signin')}
+                  className="text-sm text-accent-primary text-center hover:opacity-80 transition-opacity"
+                >
+                  Already have an account? Sign in
+                </button>
+              </form>
             </motion.div>
           )}
         </AnimatePresence>

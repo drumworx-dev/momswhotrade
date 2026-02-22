@@ -19,7 +19,7 @@
  */
 
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import { beforeUserCreated } from 'firebase-functions/v2/identity';
+import { auth as authV1 } from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import * as jwt from 'jsonwebtoken';
 
@@ -87,7 +87,9 @@ export const addGhostLabel = onCall(async (request) => {
     { headers }
   );
   if (!searchRes.ok) {
-    throw new HttpsError('internal', `Ghost member search failed: ${searchRes.status}`);
+    const body = await searchRes.text().catch(() => '');
+    console.error(`Ghost member search failed ${searchRes.status}: ${body}`);
+    throw new HttpsError('internal', `Ghost member search failed: ${searchRes.status} — ${body}`);
   }
 
   const searchData = (await searchRes.json()) as { members: GhostMember[] };
@@ -107,7 +109,9 @@ export const addGhostLabel = onCall(async (request) => {
       body: JSON.stringify({ members: [newMember] }),
     });
     if (!createRes.ok) {
-      throw new HttpsError('internal', `Ghost member create failed: ${createRes.status}`);
+      const body = await createRes.text().catch(() => '');
+      console.error(`Ghost member create failed ${createRes.status}: ${body}`);
+      throw new HttpsError('internal', `Ghost member create failed: ${createRes.status} — ${body}`);
     }
     return { success: true, action: 'created' };
   }
@@ -135,7 +139,9 @@ export const addGhostLabel = onCall(async (request) => {
     body: JSON.stringify({ members: [patch] }),
   });
   if (!updateRes.ok) {
-    throw new HttpsError('internal', `Ghost member update failed: ${updateRes.status}`);
+    const body = await updateRes.text().catch(() => '');
+    console.error(`Ghost member update failed ${updateRes.status}: ${body}`);
+    throw new HttpsError('internal', `Ghost member update failed: ${updateRes.status} — ${body}`);
   }
 
   return { success: true, action: 'labelled' };
@@ -146,9 +152,10 @@ export const addGhostLabel = onCall(async (request) => {
  * Fires whenever a new Firebase user is created (email/password or Google).
  * Creates them as a Ghost member so they're always in Ghost from day one.
  * Errors are caught and logged — user creation is never blocked.
+ * Uses v1 auth trigger (not a blocking function) so no Identity Platform upgrade required.
  */
-export const syncNewUserToGhost = beforeUserCreated(async (event) => {
-  const email = event.data?.email;
+export const syncNewUserToGhost = authV1.user().onCreate(async (user) => {
+  const email = user.email;
   if (!email) return;
 
   try {
@@ -172,7 +179,7 @@ export const syncNewUserToGhost = beforeUserCreated(async (event) => {
       'Accept-Version': 'v5.0',
     };
 
-    const displayName = event.data?.displayName || '';
+    const displayName = user.displayName || '';
 
     // Check if member already exists first
     const searchRes = await fetch(
