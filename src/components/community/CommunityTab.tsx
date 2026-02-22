@@ -25,7 +25,9 @@ const PRODUCTS = [
     badge: 'One-time',
     learnMoreUrl: 'https://whop.com/moms-who-trade/1-1-trading-kickstart-call-with-mel/',
     accent: '#7C3AED',
-    bgGradient: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)',
+    // Drop your image in public/products/call-kickstart.jpg (any JPG/PNG/WebP, ~1200×675px recommended)
+    image: '/products/call-kickstart.jpg',
+    imageFallbackGradient: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)',
     emoji: '📞',
     bullets: [
       '60-min private call with Mel',
@@ -43,7 +45,9 @@ const PRODUCTS = [
     badge: 'Workshop',
     learnMoreUrl: 'https://whop.com/moms-who-trade/first-500-in-30-days-workshop/',
     accent: '#059669',
-    bgGradient: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)',
+    // Drop your image in public/products/workshop-500.jpg (any JPG/PNG/WebP, ~1200×675px recommended)
+    image: '/products/workshop-500.jpg',
+    imageFallbackGradient: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)',
     emoji: '🚀',
     bullets: [
       'Step-by-step beginner curriculum',
@@ -78,6 +82,7 @@ export function CommunityTab() {
   const { user } = useAuth();
   const [activePlanId, setActivePlanId]   = useState<string | null>(null);
   const [successPlanId, setSuccessPlanId] = useState<string | null>(null);
+  const [imgErrors, setImgErrors]         = useState<Record<string, boolean>>({});
 
   const activeProduct  = PRODUCTS.find(p => p.planId === activePlanId);
   const successContent = successPlanId ? SUCCESS_CONTENT[successPlanId as keyof typeof SUCCESS_CONTENT] : null;
@@ -169,68 +174,87 @@ export function CommunityTab() {
           </motion.div>
 
           {/* Whop Product Cards */}
-          {PRODUCTS.map((product, i) => (
-            <motion.div
-              key={product.planId}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 + i * 0.05 }}
-              className="rounded-card shadow-sm overflow-hidden"
-              style={{ background: product.bgGradient }}
-            >
-              {/* Badge row */}
-              <div className="flex items-center justify-between px-6 pt-5 pb-1">
-                <div className="flex items-center gap-2">
-                  <span
-                    className="text-xs font-semibold px-2.5 py-0.5 rounded-full text-white"
+          {PRODUCTS.map((product, i) => {
+            const imageErrored = imgErrors[product.planId];
+            return (
+              <motion.div
+                key={product.planId}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 + i * 0.05 }}
+                className="bg-white rounded-card shadow-sm overflow-hidden"
+              >
+                {/* Banner image — 16:9, falls back to gradient + emoji */}
+                <div className="relative w-full aspect-[16/9] overflow-hidden">
+                  {!imageErrored ? (
+                    <img
+                      src={product.image}
+                      alt={product.title}
+                      className="w-full h-full object-cover"
+                      onError={() => setImgErrors(prev => ({ ...prev, [product.planId]: true }))}
+                    />
+                  ) : (
+                    <div
+                      className="w-full h-full flex items-center justify-center"
+                      style={{ background: product.imageFallbackGradient }}
+                    >
+                      <span className="text-7xl">{product.emoji}</span>
+                    </div>
+                  )}
+                  {/* Price pill overlaid on image */}
+                  <div
+                    className="absolute top-3 right-3 text-white text-sm font-bold px-3 py-1 rounded-full shadow-lg"
                     style={{ background: product.accent }}
                   >
-                    {product.badge}
-                  </span>
-                  <a
-                    href={product.learnMoreUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs font-semibold px-2.5 py-0.5 rounded-full border transition-colors hover:opacity-80 flex items-center gap-1"
-                    style={{ borderColor: product.accent, color: product.accent }}
-                  >
-                    Learn More
-                    <ExternalLink size={10} />
-                  </a>
-                </div>
-                <span className="text-2xl font-bold" style={{ color: product.accent }}>
-                  {product.price}
-                </span>
-              </div>
-
-              <div className="px-6 pb-6">
-                <div className="flex items-center gap-3 mb-3 mt-2">
-                  <span className="text-3xl">{product.emoji}</span>
-                  <div>
-                    <h2 className="text-lg font-bold text-text-primary leading-tight">{product.title}</h2>
-                    <p className="text-text-secondary text-sm">{product.subtitle}</p>
+                    {product.price}
                   </div>
                 </div>
 
-                <ul className="flex flex-col gap-2 mb-5">
-                  {product.bullets.map(item => (
-                    <li key={item} className="flex items-center gap-2 text-sm text-text-secondary">
-                      <span className="font-bold" style={{ color: product.accent }}>✓</span>
-                      {item}
-                    </li>
-                  ))}
-                </ul>
+                {/* Card content */}
+                <div className="px-5 pt-4 pb-5">
+                  {/* Badge + Whop link row */}
+                  <div className="flex items-center gap-2 mb-3">
+                    <span
+                      className="text-xs font-semibold px-2.5 py-0.5 rounded-full text-white"
+                      style={{ background: product.accent }}
+                    >
+                      {product.badge}
+                    </span>
+                    <a
+                      href={product.learnMoreUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="ml-auto text-xs font-semibold px-2.5 py-0.5 rounded-full border flex items-center gap-1 hover:opacity-70 transition-opacity"
+                      style={{ borderColor: product.accent, color: product.accent }}
+                    >
+                      View on Whop
+                      <ExternalLink size={10} />
+                    </a>
+                  </div>
 
-                <button
-                  onClick={() => setActivePlanId(product.planId)}
-                  className="flex items-center justify-center w-full text-white rounded-pill px-6 py-4 font-semibold shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 min-h-[52px]"
-                  style={{ background: product.accent }}
-                >
-                  {product.cta} →
-                </button>
-              </div>
-            </motion.div>
-          ))}
+                  <h2 className="text-lg font-bold text-text-primary leading-tight">{product.title}</h2>
+                  <p className="text-text-secondary text-sm mt-0.5 mb-4">{product.subtitle}</p>
+
+                  <ul className="flex flex-col gap-2 mb-5">
+                    {product.bullets.map(item => (
+                      <li key={item} className="flex items-start gap-2 text-sm text-text-secondary">
+                        <span className="font-bold flex-shrink-0 mt-px" style={{ color: product.accent }}>✓</span>
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+
+                  <button
+                    onClick={() => setActivePlanId(product.planId)}
+                    className="flex items-center justify-center w-full text-white rounded-pill px-6 py-4 font-semibold shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 min-h-[52px]"
+                    style={{ background: product.accent }}
+                  >
+                    {product.cta} →
+                  </button>
+                </div>
+              </motion.div>
+            );
+          })}
 
           {/* Follow Us on Socials */}
           <motion.div
