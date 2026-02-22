@@ -24,7 +24,10 @@ import * as jwt from 'jsonwebtoken';
 
 admin.initializeApp();
 
-const GHOST_API_URL = 'https://momswhotrade.co/ghost/api/admin';
+// Use the canonical Ghost host (moms.ghost.io) rather than the custom domain
+// (momswhotrade.co) which redirects — Node.js fetch drops the Authorization
+// header on cross-origin redirects, causing Ghost to return 403.
+const GHOST_API_URL = 'https://moms.ghost.io/ghost/api/admin';
 
 /** Creates a short-lived Ghost Admin API JWT from the key in functions/.env */
 function ghostToken(): string {
