@@ -40,11 +40,19 @@ export function OnboardingFlow() {
 
   // Called from step 5 — handles email consent then completes onboarding
   async function handleEmailConsent(consent: boolean) {
-    await updateUserProfile({ emailConsent: consent });
     if (consent && user?.email) {
       subscribeToGhost(user.email); // fire-and-forget
     }
-    await handleComplete();
+    // Merge into one call so onboardingComplete is set atomically with emailConsent.
+    // Previously two sequential calls meant a Firestore error on the first would
+    // silently prevent the second (which sets onboardingComplete: true) from running.
+    await updateUserProfile({
+      emailConsent: consent,
+      experience,
+      monthlyGoal: parseFloat(monthlyGoal) || 1000,
+      dailyProfitGoalPercent: dailyPercent,
+      onboardingComplete: true,
+    });
   }
 
   // Step 4 "Start Exploring" button handler:
