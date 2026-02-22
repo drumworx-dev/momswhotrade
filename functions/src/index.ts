@@ -19,7 +19,6 @@
  */
 
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import * as admin from 'firebase-admin';
 import * as jwt from 'jsonwebtoken';
 
@@ -145,74 +144,4 @@ export const addGhostLabel = onCall(async (request) => {
   }
 
   return { success: true, action: 'labelled' };
-});
-
-/**
- * Firestore trigger: syncNewUserToGhost
- * Fires when a new document is created in the `users` collection (i.e. every
- * new sign-up, regardless of provider). Creates a Ghost member so the user is
- * always in Ghost from day one. Errors are caught and logged — they never
- * surface to the user. Pure gen-2, no Identity Platform required.
- */
-export const syncNewUserToGhost = onDocumentCreated('users/{uid}', async (event) => {
-  const data = event.data?.data() as Record<string, unknown> | undefined;
-  const email = data?.email as string | undefined;
-  if (!email) return;
-
-  try {
-    const apiKey = process.env.GHOST_ADMIN_API_KEY;
-    if (!apiKey) {
-      console.error('syncNewUserToGhost: GHOST_ADMIN_API_KEY is not set');
-      return;
-    }
-
-    const [id, secret] = apiKey.split(':');
-    const token = jwt.sign({}, Buffer.from(secret, 'hex'), {
-      keyid: id,
-      algorithm: 'HS256',
-      expiresIn: '5m',
-      audience: '/admin/',
-    });
-
-    const headers = {
-      Authorization: `Ghost ${token}`,
-      'Content-Type': 'application/json',
-      'Accept-Version': 'v5.0',
-    };
-
-    const displayName = (data?.displayName as string | undefined) || '';
-
-    // Check if member already exists first
-    const searchRes = await fetch(
-      `${GHOST_API_URL}/members/?filter=email:'${encodeURIComponent(email)}'`,
-      { headers }
-    );
-    if (searchRes.ok) {
-      const searchData = (await searchRes.json()) as { members: GhostMember[] };
-      if (searchData.members.length > 0) {
-        console.log(`syncNewUserToGhost: ${email} already in Ghost`);
-        return;
-      }
-    }
-
-    // Create the member
-    const body: Record<string, unknown> = { email };
-    if (displayName) body.name = displayName;
-
-    const createRes = await fetch(`${GHOST_API_URL}/members/`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ members: [body] }),
-    });
-
-    if (createRes.ok) {
-      console.log(`syncNewUserToGhost: created Ghost member for ${email}`);
-    } else {
-      const errText = await createRes.text();
-      console.error(`syncNewUserToGhost: Ghost create failed ${createRes.status}: ${errText}`);
-    }
-  } catch (err) {
-    // Never block user creation — just log and move on
-    console.error('syncNewUserToGhost: unexpected error', err);
-  }
 });
