@@ -6,6 +6,8 @@ import { Input } from '../shared/Input';
 import { formatPrice, formatPercent, displayNum, normalizeInput } from '../../utils/formatters';
 import { calculateTradeResult } from '../../utils/calculations';
 import { useTrades } from '../../context/TradesContext';
+import { ConfettiOverlay } from '../shared/ConfettiOverlay';
+import { ShareCardModal } from './ShareCardModal';
 import { toast } from 'react-hot-toast';
 
 interface TradeDetailModalProps {
@@ -21,6 +23,11 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
   const [cause, setCause] = useState(trade.cause || '');
   const [token, setToken] = useState(trade.token || '');
 
+  // Confetti + P&L card flow for profitable closes
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [showPnLCard, setShowPnLCard] = useState(false);
+  const [closedTrade, setClosedTrade] = useState<Trade | null>(null);
+
   const leverage = trade.leverage || 1;
 
   const CLOSED_STATUSES: Trade['status'][] = ['closed', 'tp_reached', 'sl_hit'];
@@ -33,6 +40,7 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
       updates.closedAt = new Date().toISOString().split('T')[0];
     }
 
+    let profitable = false;
     if (closePrice) {
       const cp = parseFloat(closePrice);
       const result = calculateTradeResult(trade.direction, trade.entryPrice, cp, trade.positionSize, leverage);
@@ -42,11 +50,19 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
         profitLossPercent: result.profitLossPercent,
         winLoss: result.winLoss,
       });
+      profitable = result.profitLoss > 0 && CLOSED_STATUSES.includes(status);
     }
 
     updateTrade(trade.id, updates);
     toast.success('Trade updated!');
-    onClose();
+
+    if (profitable) {
+      // Trigger confetti → then auto-show P&L share card
+      setClosedTrade({ ...trade, ...updates } as Trade);
+      setShowConfetti(true);
+    } else {
+      onClose();
+    }
   };
 
   const handleDelete = () => {
@@ -61,6 +77,7 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
     : null;
 
   return (
+    <>
     <Modal open={open} onClose={onClose} title={`${trade.token || 'Trade'} ${trade.direction?.toUpperCase()}`}>
       <div className="flex flex-col gap-4">
         {/* Locked fields */}
@@ -157,5 +174,26 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
         </button>
       </div>
     </Modal>
+
+    {/* Confetti fires when a trade is closed in profit */}
+    <ConfettiOverlay
+      visible={showConfetti}
+      message="You're making money trading!"
+      subtext={
+        closedTrade
+          ? `+${formatPrice(closedTrade.profitLoss ?? 0)} on ${closedTrade.token || 'trade'} ${(closedTrade.direction ?? '').toUpperCase()}`
+          : undefined
+      }
+      onDone={() => { setShowConfetti(false); setShowPnLCard(true); }}
+    />
+
+    {/* P&L share card auto-appears after confetti clears */}
+    {showPnLCard && closedTrade && (
+      <ShareCardModal
+        trade={closedTrade}
+        onClose={() => { setShowPnLCard(false); onClose(); }}
+      />
+    )}
+  </>
   );
 }

@@ -8,6 +8,8 @@ interface GoalSettings {
   dailyGoalPercent: number;
   horizon: 30 | 60 | 90;
   projectionStartDate: string; // ISO date string (YYYY-MM-DD) — set once when user first saves
+  excludeWeekends: boolean;    // skip Sat/Sun trading days
+  excludeHolidays: boolean;    // skip US federal holidays
 }
 
 interface GoalsContextType {
@@ -30,7 +32,7 @@ export function GoalsProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [settings, setSettings] = useState<GoalSettings>(() => {
     const stored = localStorage.getItem('mwt_goal_settings');
-    const defaults = { startingBalance: 1000, dailyGoalPercent: 1, horizon: 30 as const, projectionStartDate: '' };
+    const defaults = { startingBalance: 1000, dailyGoalPercent: 1, horizon: 30 as const, projectionStartDate: '', excludeWeekends: false, excludeHolidays: false };
     return stored ? { ...defaults, ...JSON.parse(stored) } : defaults;
   });
   const [dailyGoals, setDailyGoals] = useState<DailyGoal[]>(() => {
@@ -68,7 +70,7 @@ export function GoalsProvider({ children }: { children: React.ReactNode }) {
 
   // Reset everything and return to default settings ($1,000 / 30 days / 2%)
   const clearProjection = () => {
-    setSettings({ startingBalance: 1000, dailyGoalPercent: 2, horizon: 30, projectionStartDate: '' });
+    setSettings({ startingBalance: 1000, dailyGoalPercent: 2, horizon: 30, projectionStartDate: '', excludeWeekends: false, excludeHolidays: false });
     setDailyGoals([]);
     setStartBalanceOverrides({});
     localStorage.removeItem('mwt_daily_goals');
@@ -83,7 +85,8 @@ export function GoalsProvider({ children }: { children: React.ReactNode }) {
     settings.dailyGoalPercent,
     settings.horizon,
     startBalanceOverrides,
-    startDate
+    startDate,
+    { excludeWeekends: settings.excludeWeekends, excludeHolidays: settings.excludeHolidays }
   );
 
   // Compute the end date for display ("by May 18th")

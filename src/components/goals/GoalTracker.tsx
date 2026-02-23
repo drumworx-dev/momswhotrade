@@ -12,6 +12,8 @@ export function GoalTracker() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [startBalance, setStartBalance] = useState(settings.startingBalance.toString());
   const [dailyPct, setDailyPct] = useState(settings.dailyGoalPercent.toString());
+  const [excludeWeekends, setExcludeWeekends] = useState(settings.excludeWeekends ?? false);
+  const [excludeHolidays, setExcludeHolidays] = useState(settings.excludeHolidays ?? false);
   const [editingRow, setEditingRow] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState('');
 
@@ -19,7 +21,9 @@ export function GoalTracker() {
   useEffect(() => {
     setStartBalance(settings.startingBalance.toString());
     setDailyPct(settings.dailyGoalPercent.toString());
-  }, [settings.startingBalance, settings.dailyGoalPercent]);
+    setExcludeWeekends(settings.excludeWeekends ?? false);
+    setExcludeHolidays(settings.excludeHolidays ?? false);
+  }, [settings.startingBalance, settings.dailyGoalPercent, settings.excludeWeekends, settings.excludeHolidays]);
 
   const today = new Date().toISOString().split('T')[0];
   const todayRow = goalRows.find(r => r.date === today);
@@ -42,10 +46,29 @@ export function GoalTracker() {
   const gainMultiple = settings.startingBalance > 0 ? (projectedEnd / settings.startingBalance).toFixed(2) : '1.00';
 
   const handleSyncTrades = () => {
+    // Build a set of dates that actually appear in the goal table.
+    // If weekends/holidays are excluded some dates won't be present; in that
+    // case we roll the trade forward to the next date that IS in the table.
+    const goalDateSet = new Set(goalRows.map(r => r.date));
+    const goalDatesSorted = goalRows.map(r => r.date);
+
+    const attributedDate = (rawDate: string): string => {
+      if (goalDateSet.has(rawDate)) return rawDate;
+      // Walk forward up to 14 calendar days to find the next trading day
+      const d = new Date(rawDate + 'T00:00:00');
+      for (let i = 1; i <= 14; i++) {
+        d.setDate(d.getDate() + 1);
+        const s = d.toISOString().split('T')[0];
+        if (goalDateSet.has(s)) return s;
+      }
+      // Fallback: use the last date in the table
+      return goalDatesSorted[goalDatesSorted.length - 1] ?? rawDate;
+    };
+
     const tradesByDate: Record<string, number> = {};
     trades.forEach(t => {
       if (t.profitLoss !== undefined && (t.status === 'closed' || t.status === 'tp_reached' || t.status === 'sl_hit')) {
-        const d = closedDateOf(t) || today;
+        const d = attributedDate(closedDateOf(t) || today);
         tradesByDate[d] = (tradesByDate[d] || 0) + t.profitLoss;
       }
     });
@@ -57,6 +80,8 @@ export function GoalTracker() {
     updateSettings({
       startingBalance: parseFloat(startBalance) || 1000,
       dailyGoalPercent: parseFloat(dailyPct) || 1,
+      excludeWeekends,
+      excludeHolidays,
     });
     setSettingsOpen(false);
     toast.success('Settings saved!');
@@ -202,6 +227,43 @@ export function GoalTracker() {
                         {h} days
                       </button>
                     ))}
+                  </div>
+                </div>
+
+                {/* Skip Non-Trading Days */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-sm font-medium text-text-secondary">Skip Non-Trading Days</label>
+                  </div>
+                  <p className="text-xs text-text-tertiary mb-3">
+                    Excluded days are skipped entirely — your goal end date shifts forward to compensate.
+                    Trades closed on skipped days are attributed to the next trading day when you sync.
+                  </p>
+                  <div className="flex flex-col gap-3">
+                    {/* Exclude Weekends */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-text-primary">Exclude weekends</span>
+                      <button
+                        type="button"
+                        onClick={() => setExcludeWeekends(v => !v)}
+                        className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none ${excludeWeekends ? 'bg-text-primary' : 'bg-gray-200'}`}
+                        aria-pressed={excludeWeekends}
+                      >
+                        <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${excludeWeekends ? 'translate-x-5' : 'translate-x-0'}`} />
+                      </button>
+                    </div>
+                    {/* Exclude US Public Holidays */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-text-primary">Exclude US public holidays</span>
+                      <button
+                        type="button"
+                        onClick={() => setExcludeHolidays(v => !v)}
+                        className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none ${excludeHolidays ? 'bg-text-primary' : 'bg-gray-200'}`}
+                        aria-pressed={excludeHolidays}
+                      >
+                        <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${excludeHolidays ? 'translate-x-5' : 'translate-x-0'}`} />
+                      </button>
+                    </div>
                   </div>
                 </div>
 
