@@ -6,6 +6,7 @@ import { mockPosts } from '../../utils/mockData';
 import { useAuth } from '../../context/AuthContext';
 import { GHOST_CONFIG } from '../../config/ghost';
 import { useLoginStreak } from '../../hooks/useLoginStreak';
+import { ConfettiOverlay } from '../shared/ConfettiOverlay';
 import type { BlogPost } from '../../types';
 
 interface GhostPost {
@@ -51,9 +52,22 @@ export function BlogFeed() {
   const [loading, setLoading] = useState(!!GHOST_CONFIG.key);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
+  const [showWelcomeConfetti, setShowWelcomeConfetti] = useState(false);
   const { user, signOut } = useAuth();
   const streak = useLoginStreak();
   const firstName = user?.displayName?.split(' ')[0] || '';
+
+  // Show welcome confetti the very first time the user lands here after onboarding.
+  useEffect(() => {
+    const FLAG = 'mwt_welcome_confetti_shown';
+    if (!localStorage.getItem(FLAG)) {
+      localStorage.setItem(FLAG, '1');
+      // Small delay so the home screen has a moment to paint before the overlay fires.
+      const t = setTimeout(() => setShowWelcomeConfetti(true), 700);
+      return () => clearTimeout(t);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!GHOST_CONFIG.key) return;
@@ -74,6 +88,14 @@ export function BlogFeed() {
 
   return (
     <div className="flex flex-col h-full">
+      {/* Welcome confetti — fires once, immediately after first post-onboarding home visit */}
+      <ConfettiOverlay
+        visible={showWelcomeConfetti}
+        message="You've taken the first step!"
+        subtext="Welcome to Moms Who Trade. Your journey starts now."
+        onDone={() => setShowWelcomeConfetti(false)}
+      />
+
       {/* In-app article reader overlay */}
       <AnimatePresence>
         {selectedPost && (

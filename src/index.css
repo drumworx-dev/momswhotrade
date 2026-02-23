@@ -80,3 +80,18 @@
     font-variant-numeric: tabular-nums;
   }
 }
+
+/* Confetti piece animation — used by ConfettiOverlay */
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(-16px) rotate(0deg) scale(1);
+    opacity: 1;
+  }
+  80% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translateY(108vh) rotate(740deg) scale(0.4);
+    opacity: 0;
+  }
+}

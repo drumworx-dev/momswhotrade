@@ -1,4 +1,5 @@
 import type { CalculatorState, CalculatorResults } from '../types';
+import { isUSFederalHoliday } from './holidays';
 
 export function calculateTrade(state: CalculatorState): CalculatorResults | null {
   const accountBalance = parseFloat(state.accountBalance);
@@ -96,19 +97,41 @@ export function compoundBalance(startBalance: number, dailyPercent: number, days
   return balance;
 }
 
+export interface GoalTableOptions {
+  excludeWeekends?: boolean;
+  excludeHolidays?: boolean;
+}
+
 export function generateGoalTable(
   startingBalance: number,
   dailyGoalPercent: number,
   days: number,
   overrides: Record<string, number> = {},
-  startDate: Date = new Date()
+  startDate: Date = new Date(),
+  options: GoalTableOptions = {}
 ) {
+  const { excludeWeekends = false, excludeHolidays = false } = options;
+
   const rows = [];
   let balance = startingBalance;
-  for (let i = 0; i < days; i++) {
+  let tradingDays = 0;
+  let calendarOffset = 0;
+
+  while (tradingDays < days) {
     const d = new Date(startDate);
-    d.setDate(d.getDate() + i);
+    d.setDate(d.getDate() + calendarOffset);
+    calendarOffset++;
+
+    // Skip weekends when requested (0 = Sun, 6 = Sat)
+    if (excludeWeekends) {
+      const dow = d.getDay();
+      if (dow === 0 || dow === 6) continue;
+    }
+
     const dateStr = d.toISOString().split('T')[0];
+
+    // Skip US federal holidays when requested
+    if (excludeHolidays && isUSFederalHoliday(dateStr)) continue;
 
     if (overrides[dateStr] !== undefined) {
       balance = overrides[dateStr];
@@ -116,8 +139,9 @@ export function generateGoalTable(
 
     const dailyGoalAmount    = balance * (dailyGoalPercent / 100);
     const expectedEnd        = balance + dailyGoalAmount;
-    rows.push({ day: i + 1, date: dateStr, startingBalance: balance, dailyGoalAmount, expectedEndingBalance: expectedEnd });
+    rows.push({ day: tradingDays + 1, date: dateStr, startingBalance: balance, dailyGoalAmount, expectedEndingBalance: expectedEnd });
     balance = expectedEnd;
+    tradingDays++;
   }
   return rows;
 }
