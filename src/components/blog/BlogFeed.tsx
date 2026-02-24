@@ -62,9 +62,11 @@ export function BlogFeed() {
   const { track } = useAnalytics();
   const firstName = user?.displayName?.split(' ')[0] || '';
 
-  // Show welcome confetti the very first time the user lands here after onboarding.
+  // Show welcome confetti the very first time THIS user lands here after onboarding.
+  // Flag is keyed to user.uid so a new account on the same browser still fires correctly.
   useEffect(() => {
-    const FLAG = 'mwt_welcome_confetti_shown';
+    if (!user?.uid) return;
+    const FLAG = `mwt_welcome_confetti_shown_${user.uid}`;
     if (!localStorage.getItem(FLAG)) {
       localStorage.setItem(FLAG, '1');
       // Small delay so the home screen has a moment to paint before the overlay fires.
@@ -72,7 +74,7 @@ export function BlogFeed() {
       return () => clearTimeout(t);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [user?.uid]);
 
   useEffect(() => {
     if (!GHOST_CONFIG.key) return;
