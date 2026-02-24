@@ -10,6 +10,7 @@ interface GoalSettings {
   projectionStartDate: string; // ISO date string (YYYY-MM-DD) — set once when user first saves
   excludeWeekends: boolean;    // skip Sat/Sun trading days
   excludeHolidays: boolean;    // skip US federal holidays
+  tradingFeePercent: number;   // closing fee % deducted from all P&L (0.5 | 1 | 1.5 | 2)
 }
 
 interface GoalsContextType {
@@ -33,7 +34,7 @@ export function GoalsProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [settings, setSettings] = useState<GoalSettings>(() => {
     const stored = localStorage.getItem('mwt_goal_settings');
-    const defaults = { startingBalance: 1000, dailyGoalPercent: 1, horizon: 30 as const, projectionStartDate: '', excludeWeekends: false, excludeHolidays: false };
+    const defaults = { startingBalance: 1000, dailyGoalPercent: 1, horizon: 30 as const, projectionStartDate: '', excludeWeekends: false, excludeHolidays: false, tradingFeePercent: 1 };
     return stored ? { ...defaults, ...JSON.parse(stored) } : defaults;
   });
   const [dailyGoals, setDailyGoals] = useState<DailyGoal[]>(() => {
@@ -133,7 +134,7 @@ export function GoalsProvider({ children }: { children: React.ReactNode }) {
 
   // Reset everything and return to default settings ($1,000 / 30 days / 2%)
   const clearProjection = () => {
-    setSettings({ startingBalance: 1000, dailyGoalPercent: 2, horizon: 30, projectionStartDate: '', excludeWeekends: false, excludeHolidays: false });
+    setSettings({ startingBalance: 1000, dailyGoalPercent: 2, horizon: 30, projectionStartDate: '', excludeWeekends: false, excludeHolidays: false, tradingFeePercent: 1 });
     setDailyGoals([]);
     setStartBalanceOverrides({});
     localStorage.removeItem('mwt_daily_goals');

@@ -19,7 +19,8 @@ interface TradeDetailModalProps {
 
 export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps) {
   const { trades, updateTrade, deleteTrade } = useTrades();
-  const { goalRows, syncTrades } = useGoals();
+  const { goalRows, syncTrades, settings: goalSettings } = useGoals();
+  const feePercent = goalSettings.tradingFeePercent ?? 1;
   const [closePrice, setClosePrice] = useState(trade.closePrice?.toString() || '');
   const [entryPrice, setEntryPrice] = useState(trade.entryPrice.toString());
   const [status, setStatus] = useState(trade.status);
@@ -63,6 +64,7 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
       pp,
       trade.positionSize * (partialPercent / 100),
       leverage,
+      feePercent,
     );
 
     const newPartial: PartialClose = {
@@ -70,6 +72,7 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
       percent: partialPercent,
       price: pp,
       pnl: result.profitLoss,
+      fee: result.fee,
       date: new Date().toISOString().split('T')[0],
     };
 
@@ -100,12 +103,13 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
       const cp = parseFloat(closePrice);
       // Use remaining position size after any partial closes
       const closingPositionSize = trade.positionSize * remainingFraction;
-      const result = calculateTradeResult(trade.direction, parsedEntry, cp, closingPositionSize, leverage);
+      const result = calculateTradeResult(trade.direction, parsedEntry, cp, closingPositionSize, leverage, feePercent);
       Object.assign(updates, {
         closePrice: cp,
         profitLoss: result.profitLoss,
         profitLossPercent: result.profitLossPercent,
         winLoss: result.winLoss,
+        estimatedFee: result.fee,
       });
       profitable = result.profitLoss > 0 && CLOSED_STATUSES.includes(status);
     }
@@ -181,10 +185,10 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
   const parsedPartialPrice = parseFloat(partialPrice);
   const parsedEntryNum = parseFloat(entryPrice) || trade.entryPrice;
   const previewResult = closePrice && !isNaN(parseFloat(closePrice))
-    ? calculateTradeResult(trade.direction, parsedEntryNum, parseFloat(closePrice), trade.positionSize * remainingFraction, leverage)
+    ? calculateTradeResult(trade.direction, parsedEntryNum, parseFloat(closePrice), trade.positionSize * remainingFraction, leverage, feePercent)
     : null;
   const partialPreview = partialPercent && partialPrice && !isNaN(parsedPartialPrice)
-    ? calculateTradeResult(trade.direction, parsedEntryNum, parsedPartialPrice, trade.positionSize * (partialPercent / 100), leverage)
+    ? calculateTradeResult(trade.direction, parsedEntryNum, parsedPartialPrice, trade.positionSize * (partialPercent / 100), leverage, feePercent)
     : null;
 
   return (
@@ -281,13 +285,16 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
         </div>
 
         {previewResult && (
-          <div className="bg-surface-dim rounded-card p-3">
+          <div className="bg-surface-dim rounded-card p-3 flex flex-col gap-1">
             <div className={`text-center font-bold text-lg ${previewResult.winLoss === 'win' ? 'text-accent-success' : 'text-accent-error'}`}>
               {previewResult.profitLoss >= 0 ? '+' : ''}{formatPrice(previewResult.profitLoss)}{' '}
               ({formatPercent(previewResult.profitLossPercent)})
             </div>
+            <div className="text-center text-xs text-text-tertiary">
+              Est. fee ({feePercent}%): −{formatPrice(previewResult.fee)}
+            </div>
             {(leverage > 1 || remainingFraction < 1) && (
-              <div className="text-center text-xs text-text-tertiary mt-1">
+              <div className="text-center text-xs text-text-tertiary">
                 {remainingFraction < 1
                   ? `On ${Math.round(remainingFraction * 100)}% remaining position${leverage > 1 ? ` · ${leverage}x leverage` : ''}`
                   : `Includes ${leverage}x leverage on ${formatPrice(trade.positionSize)} margin`}
@@ -375,10 +382,15 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
 
                   {/* Partial P&L preview */}
                   {partialPreview && (
-                    <div className={`rounded-lg px-3 py-2 text-center text-sm font-semibold ${
-                      partialPreview.winLoss === 'win' ? 'bg-green-50 text-accent-success' : 'bg-red-50 text-accent-error'
+                    <div className={`rounded-lg px-3 py-2 text-center ${
+                      partialPreview.winLoss === 'win' ? 'bg-green-50' : 'bg-red-50'
                     }`}>
-                      {partialPreview.profitLoss >= 0 ? '+' : ''}{formatPrice(partialPreview.profitLoss)} banked on {partialPercent}%
+                      <div className={`text-sm font-semibold ${partialPreview.winLoss === 'win' ? 'text-accent-success' : 'text-accent-error'}`}>
+                        {partialPreview.profitLoss >= 0 ? '+' : ''}{formatPrice(partialPreview.profitLoss)} banked on {partialPercent}%
+                      </div>
+                      <div className="text-xs text-text-tertiary mt-0.5">
+                        Est. fee: −{formatPrice(partialPreview.fee)}
+                      </div>
                     </div>
                   )}
 

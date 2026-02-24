@@ -54,6 +54,11 @@ export function TradeJournal() {
   const wins = trades.filter(t => t.winLoss === 'win').length;
   const total = trades.filter(t => t.winLoss).length;
   const winRate = total > 0 ? Math.round((wins / total) * 100) : 0;
+  const totalFees = trades.reduce((sum, t) => {
+    const closeFee = t.estimatedFee ?? 0;
+    const partialFees = (t.partialCloses ?? []).reduce((s, pc) => s + (pc.fee ?? 0), 0);
+    return sum + closeFee + partialFees;
+  }, 0);
 
   // Best / worst category by win rate
   const categoryStats = CATEGORIES
@@ -101,6 +106,14 @@ export function TradeJournal() {
             <div className="font-bold text-base text-text-primary">{trades.length}</div>
           </div>
         </div>
+
+        {/* Est. fees row */}
+        {totalFees > 0 && (
+          <div className="flex items-center justify-between bg-surface-dim rounded-card px-3 py-2 mb-1">
+            <span className="text-xs text-text-tertiary">Estimated fees paid (closing)</span>
+            <span className="text-xs font-semibold text-accent-error">−{totalFees.toFixed(2)}</span>
+          </div>
+        )}
 
         {/* Best / Worst category badges */}
         {(bestCat || worstCat) && (
