@@ -4,23 +4,27 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
+  // Enables the `.dark` class strategy — applied to <html> by ThemeContext
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
-        'bg-primary': '#E8DDD8',
-        'bg-secondary': '#F5E6E8',
-        'surface': '#FFFFFF',
-        'surface-dim': '#F9F5F3',
-        'accent-primary': '#D4A5A5',
-        'accent-dark': '#B88B8B',
-        'accent-success': '#7FB069',
-        'accent-error': '#E07A5F',
-        'accent-warning': '#F2A65A',
-        'text-primary': '#2D2D2D',
-        'text-secondary': '#6B6B6B',
-        'text-tertiary': '#9B9B9B',
-        'chart-bars': '#2D2D2D',
-        'chart-outline': '#E8DDD8',
+        // All tokens reference CSS custom properties so a single `.dark` class
+        // on <html> swaps the entire palette without touching any component.
+        'bg-primary':      'var(--color-bg-primary)',
+        'bg-secondary':    'var(--color-bg-secondary)',
+        'surface':         'var(--color-surface)',
+        'surface-dim':     'var(--color-surface-dim)',
+        'accent-primary':  'var(--color-accent-primary)',
+        'accent-dark':     'var(--color-accent-dark)',
+        'accent-success':  'var(--color-accent-success)',
+        'accent-error':    'var(--color-accent-error)',
+        'accent-warning':  'var(--color-accent-warning)',
+        'text-primary':    'var(--color-text-primary)',
+        'text-secondary':  'var(--color-text-secondary)',
+        'text-tertiary':   'var(--color-text-tertiary)',
+        'chart-bars':      'var(--color-chart-bars)',
+        'chart-outline':   'var(--color-chart-outline)',
       },
       fontFamily: {
         sans: ['-apple-system', 'BlinkMacSystemFont', 'SF Pro Display', 'Segoe UI', 'Roboto', 'sans-serif'],
@@ -39,4 +43,3 @@ export default {
   },
   plugins: [],
 }
-

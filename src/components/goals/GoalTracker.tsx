@@ -126,7 +126,7 @@ export function GoalTracker() {
         <div className="max-w-lg mx-auto flex flex-col gap-4">
 
           {/* ── 1. PROJECTED OUTCOME ─────────────────────────────── */}
-          <div className="bg-gradient-to-br from-text-primary to-gray-800 rounded-card shadow-md p-5 text-white">
+          <div className="bg-gradient-to-br from-text-primary to-gray-800 dark:from-[#3A3638] dark:to-[#1C1C1E] rounded-card shadow-md p-5 text-white">
             <div className="text-xs font-semibold uppercase tracking-wider opacity-60 mb-1">
               {settings.horizon}-Day Projection
               {projectionEndDate && (

@@ -3,6 +3,7 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { TradesProvider } from './context/TradesContext';
 import { GoalsProvider } from './context/GoalsContext';
+import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { LoginScreen } from './components/auth/LoginScreen';
 import { OnboardingFlow } from './components/auth/OnboardingFlow';
 import { BottomNav } from './components/shared/BottomNav';
@@ -12,6 +13,27 @@ import { TradeJournal } from './components/journal/TradeJournal';
 import { GoalTracker } from './components/goals/GoalTracker';
 import { CommunityTab } from './components/community/CommunityTab';
 import { LoadingSpinner } from './components/shared/LoadingSpinner';
+
+function ThemedToaster() {
+  const { isDark } = useTheme();
+  return (
+    <Toaster
+      position="top-center"
+      toastOptions={{
+        style: {
+          background: isDark ? '#2C2A2D' : '#fff',
+          color: isDark ? '#F0EBE7' : '#2D2D2D',
+          borderRadius: '12px',
+          boxShadow: isDark
+            ? '0 4px 16px rgba(0,0,0,0.5)'
+            : '0 4px 16px rgba(0,0,0,0.1)',
+          fontSize: '14px',
+          fontWeight: 500,
+        },
+      }}
+    />
+  );
+}
 
 function AppRoutes() {
   const { user, loading } = useAuth();
@@ -56,26 +78,16 @@ function AppRoutes() {
 export default function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <TradesProvider>
-          <GoalsProvider>
-            <AppRoutes />
-            <Toaster
-              position="top-center"
-              toastOptions={{
-                style: {
-                  background: '#fff',
-                  color: '#2D2D2D',
-                  borderRadius: '12px',
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
-                  fontSize: '14px',
-                  fontWeight: 500,
-                },
-              }}
-            />
-          </GoalsProvider>
-        </TradesProvider>
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <TradesProvider>
+            <GoalsProvider>
+              <AppRoutes />
+              <ThemedToaster />
+            </GoalsProvider>
+          </TradesProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </BrowserRouter>
   );
 }

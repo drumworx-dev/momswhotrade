@@ -2,6 +2,46 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ══ DESIGN TOKEN CSS VARS ════════════════════════════════════════════════ */
+
+:root {
+  /* Light mode — warm Scandi */
+  --color-bg-primary:     #E8DDD8;
+  --color-bg-secondary:   #F5E6E8;
+  --color-surface:        #FFFFFF;
+  --color-surface-dim:    #F9F5F3;
+  --color-accent-primary: #D4A5A5;
+  --color-accent-dark:    #B88B8B;
+  --color-accent-success: #7FB069;
+  --color-accent-error:   #E07A5F;
+  --color-accent-warning: #F2A65A;
+  --color-text-primary:   #2D2D2D;
+  --color-text-secondary: #6B6B6B;
+  --color-text-tertiary:  #9B9B9B;
+  --color-chart-bars:     #2D2D2D;
+  --color-chart-outline:  #E8DDD8;
+}
+
+.dark {
+  /* Dark mode — warm charcoal Scandi (never pure black) */
+  --color-bg-primary:     #1C1C1E;
+  --color-bg-secondary:   #2A2729;
+  --color-surface:        #2C2A2D;
+  --color-surface-dim:    #242224;
+  --color-accent-primary: #C9908F;
+  --color-accent-dark:    #A87878;
+  --color-accent-success: #7FB069;
+  --color-accent-error:   #E07A5F;
+  --color-accent-warning: #F2A65A;
+  --color-text-primary:   #F0EBE7;
+  --color-text-secondary: #A09890;
+  --color-text-tertiary:  #6A6260;
+  --color-chart-bars:     #F0EBE7;
+  --color-chart-outline:  #3A3638;
+}
+
+/* ══ BASE ═════════════════════════════════════════════════════════════════ */
+
 @layer base {
   * {
     -webkit-tap-highlight-color: transparent;
@@ -20,7 +60,8 @@
     margin: 0;
     height: 100%;
     overflow: hidden;
-    background-color: #E8DDD8;
+    /* Derives from CSS var — automatically dark when .dark is on <html> */
+    background-color: var(--color-bg-primary);
   }
 
   #root {
@@ -81,7 +122,77 @@
   }
 }
 
-/* Confetti piece animation — used by ConfettiOverlay */
+/* ══ DARK MODE — global Tailwind class overrides ══════════════════════════
+   These complement the CSS-var colour system by remapping standard Tailwind
+   utility classes (bg-white, border-gray-*, etc.) that components use directly.
+   The CSS-var tokens (bg-surface, text-primary …) are handled automatically.
+═══════════════════════════════════════════════════════════════════════════ */
+
+/* Surfaces: bg-white → dark card surface */
+.dark .bg-white {
+  background-color: var(--color-surface) !important;
+}
+
+/* Borders */
+.dark .border-gray-50  { border-color: rgba(255, 255, 255, 0.05) !important; }
+.dark .border-gray-100 { border-color: rgba(255, 255, 255, 0.08) !important; }
+.dark .border-gray-200 { border-color: rgba(255, 255, 255, 0.12) !important; }
+.dark .border-dashed.border-gray-200 { border-color: rgba(255, 255, 255, 0.14) !important; }
+
+/* Gray backgrounds (buttons, tags, chips) */
+.dark .bg-gray-100 { background-color: rgba(255, 255, 255, 0.08) !important; }
+.dark .bg-gray-200 { background-color: rgba(255, 255, 255, 0.12) !important; }
+.dark .bg-gray-900 { background-color: #111010 !important; }
+
+/* Hover states */
+.dark .hover\:bg-gray-100:hover { background-color: rgba(255, 255, 255, 0.1)  !important; }
+.dark .hover\:bg-gray-200:hover { background-color: rgba(255, 255, 255, 0.15) !important; }
+.dark .hover\:border-gray-400:hover { border-color: rgba(255, 255, 255, 0.28) !important; }
+
+/* Status badge light backgrounds — keep hue, reduce brightness */
+.dark .bg-green-50    { background-color: rgba(127, 176,  105, 0.15) !important; }
+.dark .bg-green-100   { background-color: rgba(127, 176,  105, 0.2)  !important; }
+.dark .bg-red-50      { background-color: rgba(224, 122,   95, 0.15) !important; }
+.dark .bg-red-100     { background-color: rgba(224, 122,   95, 0.2)  !important; }
+.dark .bg-orange-50   { background-color: rgba(242, 166,   90, 0.15) !important; }
+.dark .bg-yellow-50   { background-color: rgba(242, 166,   90, 0.12) !important; }
+.dark .bg-blue-50     { background-color: rgba( 77, 150,  255, 0.15) !important; }
+.dark .bg-purple-50   { background-color: rgba(168,  85,  247, 0.15) !important; }
+.dark .bg-emerald-50  { background-color: rgba( 16, 185,  129, 0.15) !important; }
+.dark .bg-emerald-50\/50 { background-color: rgba(16, 185, 129, 0.08) !important; }
+.dark .bg-red-50\/30  { background-color: rgba(224, 122,   95, 0.08) !important; }
+
+/* Keep coloured text legible on dark badge backgrounds */
+.dark .text-emerald-700 { color: #6ee7b7 !important; }
+.dark .text-emerald-600 { color: #6ee7b7 !important; }
+.dark .text-red-600     { color: #fca5a5 !important; }
+.dark .text-red-500     { color: #fca5a5 !important; }
+.dark .text-red-400     { color: #fdba74 !important; }
+.dark .text-yellow-600  { color: #fcd34d !important; }
+.dark .text-orange-500  { color: #fdba74 !important; }
+.dark .text-blue-500    { color: #93c5fd !important; }
+.dark .text-purple-500  { color: #c4b5fd !important; }
+
+/* Inputs — ensure placeholder is readable */
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+/* Select dropdowns */
+.dark select {
+  background-color: var(--color-surface-dim);
+  color: var(--color-text-primary);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* Shadows — slightly stronger in dark to preserve depth */
+.dark .shadow-sm  { box-shadow: 0 2px 8px  rgba(0, 0, 0, 0.35) !important; }
+.dark .shadow-md  { box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45) !important; }
+.dark .shadow-lg  { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55) !important; }
+.dark .shadow-2xl { box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65) !important; }
+
+/* ══ Confetti piece animation — used by ConfettiOverlay ══════════════════ */
 @keyframes confetti-fall {
   0% {
     transform: translateY(-16px) rotate(0deg) scale(1);
