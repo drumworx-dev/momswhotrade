@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Moon, Sun } from 'lucide-react';
 import { BlogCard } from './BlogCard';
@@ -92,6 +92,12 @@ export function BlogFeed() {
 
   const filtered =
     activeTab === 'Latest' ? posts : posts.filter((p) => p.tag === activeTab);
+
+  // Ref for the scrollable feed container — reset to top whenever the tab changes.
+  const feedRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    feedRef.current?.scrollTo({ top: 0 });
+  }, [activeTab]);
 
   return (
     <div className="flex flex-col h-full">
@@ -271,7 +277,7 @@ export function BlogFeed() {
       </AnimatePresence>
 
       {/* Feed */}
-      <div className="flex-1 overflow-y-auto bg-bg-primary px-4 py-4 pb-24">
+      <div ref={feedRef} className="flex-1 overflow-y-auto bg-bg-primary px-4 py-4 pb-24">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
             <div className="w-8 h-8 border-4 border-accent-primary border-t-transparent rounded-full animate-spin" />
