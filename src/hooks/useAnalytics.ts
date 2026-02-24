@@ -50,8 +50,12 @@ export function useAnalytics() {
     analytics
       .then(a => {
         if (!a) return;
-        const { name, ...rest } = event as MwtEvent & { params?: object };
-        logEvent(a, name, rest.params ?? {});
+        // Firebase logEvent has strict overloads for standard event names (sign_up, login,
+        // page_view …) that conflict with the generic string overload. Type safety is
+        // already enforced by the MwtEvent union at every call site, so we cast here to
+        // let Firebase's runtime handle all names uniformly.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        logEvent(a, event.name as any, (event as any).params ?? {});
       })
       .catch(() => { /* never surface analytics errors */ });
   }, []);
