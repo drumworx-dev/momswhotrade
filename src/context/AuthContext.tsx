@@ -106,7 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!result) return; // no pending redirect — normal cold start
         const isNewUser = getAdditionalUserInfo(result)?.isNewUser ?? false;
         analytics.then(a => {
-          if (a) logEvent(a, isNewUser ? 'sign_up' : 'login', { method: 'google' } as any);
+          if (a) logEvent(a, (isNewUser ? 'sign_up' : 'login') as any, { method: 'google' });
         }).catch(() => {});
       })
       .catch(err => {
