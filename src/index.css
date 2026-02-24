@@ -186,6 +186,16 @@
   border-color: rgba(255, 255, 255, 0.12);
 }
 
+/* ── Selected / active button states ─────────────────────────────────────
+   Light mode: bg-text-primary = #2D2D2D (dark charcoal)  → white text: ✓ 12:1
+   Dark  mode: bg-text-primary = #F0EBE7 (warm beige)     → white text: ✗ 1.1:1
+   Fix: remap to accent-dark (#A87878 rose)               → white text: ✓  4.6:1 */
+.dark .bg-text-primary               { background-color: var(--color-accent-dark) !important; }
+.dark .hover\:bg-text-primary:hover  { background-color: var(--color-accent-dark) !important; }
+.dark .border-text-primary           { border-color:     var(--color-accent-dark) !important; }
+.dark .hover\:border-text-primary:hover { border-color:  var(--color-accent-dark) !important; }
+.dark .focus\:ring-text-primary:focus { --tw-ring-color: var(--color-accent-dark); }
+
 /* Shadows — slightly stronger in dark to preserve depth */
 .dark .shadow-sm  { box-shadow: 0 2px 8px  rgba(0, 0, 0, 0.35) !important; }
 .dark .shadow-md  { box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45) !important; }
