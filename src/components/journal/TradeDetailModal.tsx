@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { Trade } from '../../types';
 import { Modal } from '../shared/Modal';
 import { Button } from '../shared/Button';
@@ -29,6 +29,11 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
   const [showConfetti, setShowConfetti] = useState(false);
   const [showPnLCard, setShowPnLCard] = useState(false);
   const [closedTrade, setClosedTrade] = useState<Trade | null>(null);
+
+  // Tracks whether the current close price was auto-filled from TP/SL
+  // so switching between the two statuses updates it, but manual entry is never overwritten
+  const [closePriceAutoFilled, setClosePriceAutoFilled] = useState(false);
+  const closePriceRef = useRef<HTMLDivElement>(null);
 
   const leverage = trade.leverage || 1;
 
@@ -168,7 +173,22 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
           <label className="block text-sm font-medium text-text-secondary mb-1.5">Status</label>
           <select
             value={status}
-            onChange={e => setStatus(e.target.value as Trade['status'])}
+            onChange={e => {
+              const newStatus = e.target.value as Trade['status'];
+              setStatus(newStatus);
+              // Pre-fill close price from trade data when selecting a terminal status
+              // Only replaces the price if the field is empty OR was previously auto-filled
+              const canAutoFill = !closePrice || closePriceAutoFilled;
+              if (newStatus === 'tp_reached' && trade.takeProfit && canAutoFill) {
+                setClosePrice(trade.takeProfit.toString());
+                setClosePriceAutoFilled(true);
+                setTimeout(() => closePriceRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
+              } else if (newStatus === 'sl_hit' && trade.stopLoss && canAutoFill) {
+                setClosePrice(trade.stopLoss.toString());
+                setClosePriceAutoFilled(true);
+                setTimeout(() => closePriceRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
+              }
+            }}
             className="w-full bg-surface-dim border border-gray-200 rounded-input px-4 py-3 text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary"
           >
             <option value="planned">Planned</option>
@@ -179,15 +199,20 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
           </select>
         </div>
 
-        <Input
-          label="Close Price (optional)"
-          prefix="$"
-          type="text"
-          placeholder="Enter closing price"
-          value={displayNum(closePrice)}
-          onChange={e => setClosePrice(normalizeInput(e.target.value))}
-          inputMode="decimal"
-        />
+        <div ref={closePriceRef}>
+          <Input
+            label="Close Price (optional)"
+            prefix="$"
+            type="text"
+            placeholder="Enter closing price"
+            value={displayNum(closePrice)}
+            onChange={e => {
+              setClosePrice(normalizeInput(e.target.value));
+              setClosePriceAutoFilled(false);
+            }}
+            inputMode="decimal"
+          />
+        </div>
 
         {previewResult && (
           <div className="bg-surface-dim rounded-card p-3">
@@ -214,7 +239,9 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
           />
         </div>
 
-        <Button onClick={handleUpdate} fullWidth>Save Changes</Button>
+        <Button onClick={handleUpdate} fullWidth>
+          {CLOSED_STATUSES.includes(status) ? 'Finalise Trade' : 'Save Changes'}
+        </Button>
         <button
           onClick={handleDelete}
           className="text-accent-error text-sm text-center hover:opacity-80 transition-opacity py-2"
