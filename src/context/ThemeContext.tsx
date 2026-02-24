@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 
 type Theme = 'light' | 'dark';
 
@@ -15,15 +15,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     return (localStorage.getItem('mwt_theme') as Theme) || 'light';
   });
 
-  // Sync the `dark` class on <html> whenever theme changes
-  useEffect(() => {
-    const root = document.documentElement;
-    if (theme === 'dark') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
-  }, [theme]);
+  // NOTE: The .dark class on <html> is managed by DarkModeGate in App.tsx,
+  // which gates it behind auth/onboarding state so login and onboarding
+  // screens are always rendered in light mode regardless of saved preference.
 
   const toggleTheme = () => {
     setTheme(prev => {
