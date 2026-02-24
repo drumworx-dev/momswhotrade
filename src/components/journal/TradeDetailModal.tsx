@@ -120,7 +120,9 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
   };
 
   const handleDelete = () => {
+    const remainingTrades = trades.filter(t => t.id !== trade.id);
     deleteTrade(trade.id);
+    syncTrades(remainingTrades);
     toast.success('Trade deleted');
     onClose();
   };
