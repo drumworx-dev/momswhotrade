@@ -4,6 +4,8 @@ import {
   FacebookAuthProvider,
   getAdditionalUserInfo,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut as firebaseSignOut,
   onAuthStateChanged,
   createUserWithEmailAndPassword,
@@ -11,8 +13,9 @@ import {
   updateProfile,
   type User as FirebaseUser,
 } from 'firebase/auth';
+import { logEvent } from 'firebase/analytics';
 import { doc, setDoc, getDoc, arrayUnion, serverTimestamp } from 'firebase/firestore';
-import { auth, db } from '../config/firebase';
+import { auth, db, analytics } from '../config/firebase';
 
 export interface AppUser {
   uid: string;
@@ -91,6 +94,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // ── Redirect result handler ────────────────────────────────────────────
+    // On iOS PWA, signInWithPopup is blocked so we use signInWithRedirect.
+    // When the browser returns to the app after Google auth, this call claims
+    // the pending credential. Without it the user lands back on the login screen
+    // even though auth succeeded. onAuthStateChanged below handles setting the
+    // user state; we just need this for Firebase to mark the redirect as consumed
+    // and to fire the analytics sign_up / login event on that path.
+    getRedirectResult(auth)
+      .then(result => {
+        if (!result) return; // no pending redirect — normal cold start
+        const isNewUser = getAdditionalUserInfo(result)?.isNewUser ?? false;
+        analytics.then(a => {
+          if (a) logEvent(a, isNewUser ? 'sign_up' : 'login', { method: 'google' } as any);
+        }).catch(() => {});
+      })
+      .catch(err => {
+        // auth/no-auth-event is the normal "no pending redirect" case — ignore it
+        if (err?.code !== 'auth/no-auth-event') {
+          console.error('[Auth] getRedirectResult error:', err?.code, err?.message);
+        }
+      });
+
+    // ── Auth state observer ────────────────────────────────────────────────
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setLoading(true); // show splash while we fetch the Firestore profile
@@ -109,6 +135,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const provider = new GoogleAuthProvider();
     provider.addScope('email');
     provider.addScope('profile');
+    // Always show the account picker — essential when the user has multiple
+    // Google accounts and needs to choose the right one.
+    provider.setCustomParameters({ prompt: 'select_account' });
+
+    // On iOS PWA (navigator.standalone === true) Safari blocks popup windows,
+    // causing a silent redirect fallback with a broken UX. Use redirect explicitly
+    // so the flow is clean and getRedirectResult() above can claim the credential.
+    const isIOSPWA = !!(navigator as any).standalone;
+    if (isIOSPWA) {
+      await signInWithRedirect(auth, provider);
+      return { isNewUser: false }; // page navigates away — this line never runs
+    }
+
     const result = await signInWithPopup(auth, provider);
     return { isNewUser: getAdditionalUserInfo(result)?.isNewUser ?? false };
   };
