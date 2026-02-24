@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Youtube, Instagram } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getFunctions, httpsCallable } from 'firebase/functions';
@@ -7,6 +7,9 @@ import { app } from '../../config/firebase';
 import { Button } from '../shared/Button';
 import { compoundBalance } from '../../utils/calculations';
 import { formatCurrency } from '../../utils/formatters';
+import { useAnalytics, monthlyGoalBucket } from '../../hooks/useAnalytics';
+
+const STEP_NAMES = ['welcome', 'experience', 'monthly_goal', 'daily_percent', 'socials', 'email_consent'] as const;
 
 const ghostFunctions = getFunctions(app, 'us-central1');
 const addGhostLabelFn = httpsCallable(ghostFunctions, 'addGhostLabel');
@@ -27,6 +30,7 @@ async function ensureGhostMember(email: string, subscribeToNewsletter: boolean, 
 
 export function OnboardingFlow() {
   const { user, updateUserProfile } = useAuth();
+  const { track, setUserProps } = useAnalytics();
   const [step, setStep] = useState(0);
   const [experience, setExperience] = useState<'beginner' | 'intermediate' | 'advanced'>('beginner');
   const [monthlyGoal, setMonthlyGoal] = useState('1000');
@@ -35,8 +39,41 @@ export function OnboardingFlow() {
   const presets = [500, 1000, 2000, 5000];
   const projection30 = compoundBalance(1000, dailyPercent, 30) - 1000;
 
+  // Fire once when onboarding mounts.
+  useEffect(() => {
+    track({ name: 'onboarding_started' });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Track each forward step transition (ignores back-navigation).
+  const prevStepRef = useRef(-1);
+  useEffect(() => {
+    const prev = prevStepRef.current;
+    if (step > prev && prev >= 0) {
+      track({
+        name: 'onboarding_step_completed',
+        params: { step: prev, step_name: STEP_NAMES[prev] },
+      });
+    }
+    prevStepRef.current = step;
+  }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** Shared helper — fires completion event + user properties, then writes to Firestore. */
+  function fireCompletionAnalytics(consent: 'yes' | 'no') {
+    const goalBucket = monthlyGoalBucket(parseFloat(monthlyGoal) || 1000);
+    track({
+      name: 'onboarding_completed',
+      params: { experience, monthly_goal_bucket: goalBucket ?? '<$500', email_consent: consent },
+    });
+    setUserProps({
+      experience_level: experience,
+      email_consent: consent,
+      monthly_goal_bucket: goalBucket,
+    });
+  }
+
   // Saves the core profile data and marks onboarding complete
   const handleComplete = async () => {
+    fireCompletionAnalytics('no');
     await updateUserProfile({
       experience,
       monthlyGoal: parseFloat(monthlyGoal) || 1000,
@@ -47,6 +84,7 @@ export function OnboardingFlow() {
 
   // Called from step 5 — handles email consent then completes onboarding
   async function handleEmailConsent(consent: boolean) {
+    fireCompletionAnalytics(consent ? 'yes' : 'no');
     if (user?.email) {
       // consent flag passed to the function — newsletter subscription happens server-side
       await ensureGhostMember(user.email, consent, user.displayName ?? undefined);

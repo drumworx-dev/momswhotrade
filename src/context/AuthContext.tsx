@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import {
   GoogleAuthProvider,
   FacebookAuthProvider,
+  getAdditionalUserInfo,
   signInWithPopup,
   signOut as firebaseSignOut,
   onAuthStateChanged,
@@ -38,7 +39,7 @@ function localDateStr(d: Date = new Date()): string {
 interface AuthContextType {
   user: AppUser | null;
   loading: boolean;
-  signInWithGoogle: () => Promise<void>;
+  signInWithGoogle: () => Promise<{ isNewUser: boolean }>;
   signInWithFacebook: () => Promise<void>;
   signUpWithEmail: (email: string, password: string, displayName: string) => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
@@ -104,11 +105,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return unsub;
   }, []);
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = async (): Promise<{ isNewUser: boolean }> => {
     const provider = new GoogleAuthProvider();
     provider.addScope('email');
     provider.addScope('profile');
-    await signInWithPopup(auth, provider);
+    const result = await signInWithPopup(auth, provider);
+    return { isNewUser: getAdditionalUserInfo(result)?.isNewUser ?? false };
   };
 
   const signInWithFacebook = async () => {

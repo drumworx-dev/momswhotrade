@@ -1,12 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
+import { useAnalytics } from '../../hooks/useAnalytics';
 
 type Mode = 'social' | 'signin' | 'signup';
 
 export function LoginScreen() {
   const { signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
+  const { track } = useAnalytics();
   const [mode, setMode] = useState<Mode>('social');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -14,11 +16,17 @@ export function LoginScreen() {
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Fire once when the login screen is first shown.
+  useEffect(() => {
+    track({ name: 'login_screen_viewed' });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleSignIn = async () => {
     if (!email || !password) { toast.error('Please enter your email and password'); return; }
     setLoading(true);
     try {
       await signInWithEmail(email, password);
+      track({ name: 'login', params: { method: 'email' } });
     } catch (err: any) {
       const msg = err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password'
         ? 'Incorrect email or password'
@@ -39,6 +47,7 @@ export function LoginScreen() {
     setLoading(true);
     try {
       await signUpWithEmail(email, password, name.trim());
+      track({ name: 'sign_up', params: { method: 'email' } });
     } catch (err: any) {
       const msg = err.code === 'auth/email-already-in-use'
         ? 'An account already exists with that email — try signing in'
@@ -52,7 +61,12 @@ export function LoginScreen() {
   };
 
   const handleGoogle = async () => {
-    try { await signInWithGoogle(); } catch { toast.error('Google sign-in failed'); }
+    try {
+      const { isNewUser } = await signInWithGoogle();
+      track({ name: isNewUser ? 'sign_up' : 'login', params: { method: 'google' } });
+    } catch {
+      toast.error('Google sign-in failed');
+    }
   };
 
   const inputClass = "w-full bg-surface-dim border border-gray-200 rounded-input px-4 py-3 text-text-primary placeholder-text-tertiary focus:outline-none focus:ring-2 focus:ring-accent-primary text-sm";
