@@ -1,6 +1,8 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { useAnalytics } from './hooks/useAnalytics';
 import { TradesProvider } from './context/TradesContext';
 import { GoalsProvider } from './context/GoalsContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
@@ -13,6 +15,28 @@ import { TradeJournal } from './components/journal/TradeJournal';
 import { GoalTracker } from './components/goals/GoalTracker';
 import { CommunityTab } from './components/community/CommunityTab';
 import { LoadingSpinner } from './components/shared/LoadingSpinner';
+
+// Fires a page_view event on every client-side route change.
+// Must live inside <BrowserRouter> so useLocation() works.
+const PAGE_TITLES: Record<string, string> = {
+  '/':                    'Home',
+  '/calculator':          'Calculator',
+  '/journal':             'Journal',
+  '/goals':               'Goals',
+  '/community-level-up':  'Community – Level Up',
+};
+
+function PageViewTracker() {
+  const location = useLocation();
+  const { track } = useAnalytics();
+
+  useEffect(() => {
+    const title = PAGE_TITLES[location.pathname] ?? location.pathname;
+    track({ name: 'page_view', params: { page_path: location.pathname, page_title: title } });
+  }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return null;
+}
 
 function ThemedToaster() {
   const { isDark } = useTheme();
@@ -60,13 +84,16 @@ function AppRoutes() {
 
   return (
     <div className="flex flex-col h-full bg-bg-primary">
+      <PageViewTracker />
       <main className="flex-1 overflow-hidden">
         <Routes>
           <Route path="/" element={<BlogFeed />} />
           <Route path="/calculator" element={<TradingCalculator />} />
           <Route path="/journal" element={<TradeJournal />} />
           <Route path="/goals" element={<GoalTracker />} />
-          <Route path="/community" element={<CommunityTab />} />
+          <Route path="/community-level-up" element={<CommunityTab />} />
+          {/* Legacy redirect so any saved link/bookmark still works */}
+          <Route path="/community" element={<Navigate to="/community-level-up" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

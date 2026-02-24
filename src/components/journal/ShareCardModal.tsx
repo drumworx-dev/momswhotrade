@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { X, ImageDown, Share2 } from 'lucide-react';
 import type { Trade } from '../../types';
 import { generatePnLCard } from './generatePnLCard';
+import { useAnalytics } from '../../hooks/useAnalytics';
 
 interface ShareCardModalProps {
   trade: Trade;
@@ -38,6 +39,7 @@ export function ShareCardModal({ trade, onClose }: ShareCardModalProps) {
   const previewRef  = useRef<HTMLCanvasElement>(null);
   const [status, setStatus] = useState<'idle' | 'saving' | 'sharing'>('idle');
   const [preview, setPreview] = useState(false);
+  const { track } = useAnalytics();
 
   const tokenName = (trade.token || 'Trade').toUpperCase();
   const fileName  = `MWT-${tokenName}-${trade.direction?.toUpperCase()}-PnL.png`;
@@ -65,8 +67,10 @@ export function ShareCardModal({ trade, onClose }: ShareCardModalProps) {
         // iOS: share sheet → "Save Image" → Photos
         // Send files only — no text/url so apps like Slack don't grab a link instead
         await navigator.share({ files: [file] });
+        track({ name: 'pnl_card_shared', params: { method: 'share_sheet' } });
       } else {
         triggerDownload(blob, fileName);
+        track({ name: 'pnl_card_shared', params: { method: 'download' } });
       }
     } catch (err) {
       if (err instanceof Error && err.name !== 'AbortError') console.error(err);
@@ -85,8 +89,10 @@ export function ShareCardModal({ trade, onClose }: ShareCardModalProps) {
       if (navigator.canShare?.({ files: [file] })) {
         // Files only — omitting title/text prevents apps from preferring a link
         await navigator.share({ files: [file] });
+        track({ name: 'pnl_card_shared', params: { method: 'share_sheet' } });
       } else {
         triggerDownload(blob, fileName);
+        track({ name: 'pnl_card_shared', params: { method: 'download' } });
       }
     } catch (err) {
       if (err instanceof Error && err.name !== 'AbortError') console.error(err);

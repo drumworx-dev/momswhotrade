@@ -5,10 +5,12 @@ import { useTrades } from '../../context/TradesContext';
 import { formatCurrency, displayNum, normalizeInput } from '../../utils/formatters';
 import { Button } from '../shared/Button';
 import { toast } from 'react-hot-toast';
+import { useAnalytics } from '../../hooks/useAnalytics';
 
 export function GoalTracker() {
   const { settings, updateSettings, goalRows, dailyGoals, updateDailyGoal, setStartBalanceOverride, clearProjection, projectionEndDate } = useGoals();
   const { trades } = useTrades();
+  const { track } = useAnalytics();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [startBalance, setStartBalance] = useState(settings.startingBalance.toString());
   const [dailyPct, setDailyPct] = useState(settings.dailyGoalPercent.toString());
@@ -77,12 +79,14 @@ export function GoalTracker() {
   };
 
   const handleSaveSettings = () => {
+    const daily_goal_pct = parseFloat(dailyPct) || 1;
     updateSettings({
       startingBalance: parseFloat(startBalance) || 1000,
-      dailyGoalPercent: parseFloat(dailyPct) || 1,
+      dailyGoalPercent: daily_goal_pct,
       excludeWeekends,
       excludeHolidays,
     });
+    track({ name: 'goal_settings_saved', params: { daily_goal_pct, exclude_weekends: excludeWeekends, exclude_holidays: excludeHolidays } });
     setSettingsOpen(false);
     toast.success('Settings saved!');
   };

@@ -7,6 +7,7 @@ import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db, app } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
+import { useAnalytics } from '../../hooks/useAnalytics';
 
 // ─── Product definitions ────────────────────────────────────────────────────
 
@@ -80,6 +81,7 @@ const SUCCESS_CONTENT = {
 
 export function CommunityTab() {
   const { user } = useAuth();
+  const { track } = useAnalytics();
   const [activePlanId, setActivePlanId]   = useState<string | null>(null);
   const [successPlanId, setSuccessPlanId] = useState<string | null>(null);
   const [imgErrors, setImgErrors]         = useState<Record<string, boolean>>({});
@@ -245,7 +247,10 @@ export function CommunityTab() {
                   </ul>
 
                   <button
-                    onClick={() => setActivePlanId(product.planId)}
+                    onClick={() => {
+                      track({ name: 'whop_product_tapped', params: { product_title: product.title, plan_id: product.planId } });
+                      setActivePlanId(product.planId);
+                    }}
                     className="flex items-center justify-center w-full text-white rounded-pill px-6 py-4 font-semibold shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 min-h-[52px]"
                     style={{ background: product.accent }}
                   >
