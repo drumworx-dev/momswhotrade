@@ -10,6 +10,7 @@ import type { CalculatorState, CalculatorResults, CurrencyCode } from '../../typ
 import { useTrades } from '../../context/TradesContext';
 import { useAuth } from '../../context/AuthContext';
 import { displayNum, normalizeInput } from '../../utils/formatters';
+import { useAnalytics } from '../../hooks/useAnalytics';
 
 // ─── constants ─────────────────────────────────────────────────────────────
 const CURRENCIES: { code: CurrencyCode; label: string; sym: string }[] = [
@@ -141,6 +142,7 @@ export function TradingCalculator() {
   const [tpUserEdited, setTpUserEdited] = useState(false);
   const { addTrade }            = useTrades();
   const { user }                = useAuth();
+  const { track }               = useAnalytics();
   const resultsRef              = useRef<HTMLDivElement>(null);
 
   // Persist calculator state across tab switches
@@ -202,6 +204,7 @@ export function TradingCalculator() {
     const r = calculateTrade(state);
     if (!r) { toast.error('Fill in Account Size, Entry Price, and Stop Loss'); return; }
     setResults(r);
+    track({ name: 'position_calculated', params: { asset: state.assetName || 'unknown', category: state.assetCategory, direction: state.direction } });
     setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120);
   };
 
@@ -235,6 +238,11 @@ export function TradingCalculator() {
       cause:         '',
       status,
     });
+    if (status === 'open') {
+      track({ name: 'trade_taken', params: { asset: state.assetName || 'unknown', category: state.assetCategory, rr: results.actualRiskReward } });
+    } else {
+      track({ name: 'trade_saved_journal', params: { asset: state.assetName || 'unknown', category: state.assetCategory } });
+    }
     toast.success(status === 'open' ? 'Trade opened in Journal! 📗' : 'Trade saved to Journal! 💾', {
       style: { background: '#fff', color: '#2D2D2D', borderRadius: '12px', boxShadow: '0 4px 16px rgba(0,0,0,0.1)' },
     });

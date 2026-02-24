@@ -9,6 +9,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { GHOST_CONFIG } from '../../config/ghost';
 import { useLoginStreak } from '../../hooks/useLoginStreak';
 import { ConfettiOverlay } from '../shared/ConfettiOverlay';
+import { useAnalytics } from '../../hooks/useAnalytics';
 import type { BlogPost } from '../../types';
 
 interface GhostPost {
@@ -58,6 +59,7 @@ export function BlogFeed() {
   const { user, signOut } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const streak = useLoginStreak();
+  const { track } = useAnalytics();
   const firstName = user?.displayName?.split(' ')[0] || '';
 
   // Show welcome confetti the very first time the user lands here after onboarding.
@@ -282,7 +284,10 @@ export function BlogFeed() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.05 }}
               >
-                <BlogCard post={post} onClick={() => setSelectedPost(post)} />
+                <BlogCard post={post} onClick={() => {
+                  track({ name: 'article_read', params: { article_title: post.title, article_tag: post.tag } });
+                  setSelectedPost(post);
+                }} />
               </motion.div>
             ))}
 
