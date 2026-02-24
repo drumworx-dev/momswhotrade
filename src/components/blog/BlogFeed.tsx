@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Moon, Sun } from 'lucide-react';
 import { BlogCard } from './BlogCard';
 import { ArticleReader } from './ArticleReader';
 import { mockPosts } from '../../utils/mockData';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { GHOST_CONFIG } from '../../config/ghost';
 import { useLoginStreak } from '../../hooks/useLoginStreak';
 import { ConfettiOverlay } from '../shared/ConfettiOverlay';
@@ -50,10 +52,11 @@ export function BlogFeed() {
   const [posts, setPosts] = useState<BlogPost[]>(mockPosts);
   const [tabs, setTabs] = useState<string[]>(['Latest']);
   const [loading, setLoading] = useState(!!GHOST_CONFIG.key);
-  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [showProfileSheet, setShowProfileSheet] = useState(false);
   const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
   const [showWelcomeConfetti, setShowWelcomeConfetti] = useState(false);
   const { user, signOut } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
   const streak = useLoginStreak();
   const firstName = user?.displayName?.split(' ')[0] || '';
 
@@ -130,7 +133,7 @@ export function BlogFeed() {
             <span className="font-bold text-text-primary text-base">Moms Who Trade</span>
           </div>
           <button
-            onClick={() => setShowLogoutModal(true)}
+            onClick={() => setShowProfileSheet(true)}
             className="w-9 h-9 rounded-full overflow-hidden bg-accent-primary flex items-center justify-center"
           >
             {user?.photoURL ? (
@@ -184,35 +187,84 @@ export function BlogFeed() {
         </div>
       </div>
 
-      {/* Logout confirmation modal */}
-      {showLogoutModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm"
-          onClick={() => setShowLogoutModal(false)}
-        >
-          <div
-            className="bg-white w-full max-w-sm rounded-t-2xl p-6 pb-10 flex flex-col gap-3"
-            onClick={e => e.stopPropagation()}
+      {/* Profile sheet — dark mode toggle + sign out */}
+      <AnimatePresence>
+        {showProfileSheet && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm"
+            onClick={() => setShowProfileSheet(false)}
           >
-            <h3 className="text-lg font-bold text-text-primary text-center">Sign Out?</h3>
-            <p className="text-text-secondary text-sm text-center mb-2">
-              You'll need to sign in again to access your account.
-            </p>
-            <button
-              onClick={() => { setShowLogoutModal(false); signOut(); }}
-              className="w-full py-3.5 rounded-pill bg-text-primary text-white font-semibold text-sm"
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              className="bg-surface w-full max-w-sm rounded-t-2xl overflow-hidden"
+              onClick={e => e.stopPropagation()}
             >
-              Yes, sign out
-            </button>
-            <button
-              onClick={() => setShowLogoutModal(false)}
-              className="w-full py-3 rounded-pill bg-surface-dim text-text-secondary font-medium text-sm"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
+              {/* User info */}
+              <div className="px-6 pt-6 pb-4 flex items-center gap-3 border-b border-gray-100">
+                <div className="w-12 h-12 rounded-full overflow-hidden bg-accent-primary flex items-center justify-center flex-shrink-0">
+                  {user?.photoURL ? (
+                    <img src={user.photoURL} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-white text-lg font-semibold">
+                      {user?.displayName?.[0] || 'M'}
+                    </span>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-text-primary truncate">{user?.displayName || 'Trader'}</p>
+                  <p className="text-text-secondary text-sm truncate">{user?.email || ''}</p>
+                </div>
+              </div>
+
+              {/* Dark mode toggle row */}
+              <div className="px-6 py-4 flex items-center justify-between border-b border-gray-100">
+                <div className="flex items-center gap-3">
+                  {isDark
+                    ? <Moon size={20} className="text-accent-primary" />
+                    : <Sun size={20} className="text-text-secondary" />
+                  }
+                  <span className="text-text-primary font-medium">Dark mode</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={toggleTheme}
+                  aria-label="Toggle dark mode"
+                  className={`relative w-12 h-6 rounded-full transition-colors duration-200 focus:outline-none ${
+                    isDark ? 'bg-accent-primary' : 'bg-gray-200'
+                  }`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
+                    isDark ? 'translate-x-6' : 'translate-x-0'
+                  }`} />
+                </button>
+              </div>
+
+              {/* Actions */}
+              <div className="px-6 py-4 pb-10 flex flex-col gap-3">
+                <button
+                  onClick={() => { setShowProfileSheet(false); signOut(); }}
+                  className="w-full py-3.5 rounded-pill bg-text-primary text-surface font-semibold text-sm"
+                >
+                  Sign Out
+                </button>
+                <button
+                  onClick={() => setShowProfileSheet(false)}
+                  className="w-full py-3 rounded-pill bg-surface-dim text-text-secondary font-medium text-sm"
+                >
+                  Cancel
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Feed */}
       <div className="flex-1 overflow-y-auto bg-bg-primary px-4 py-4 pb-24">

@@ -39,13 +39,13 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
             onClick={onClose}
           />
           <motion.div
-            className={`relative bg-white rounded-t-2xl sm:rounded-card w-full ${sizes[size]} shadow-lg z-10 max-h-[90vh] overflow-y-auto`}
+            className={`relative bg-surface rounded-t-2xl sm:rounded-card w-full ${sizes[size]} shadow-lg z-10 max-h-[90vh] overflow-y-auto`}
             initial={{ y: '100%', opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: '100%', opacity: 0 }}
             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
           >
-            <div className="flex items-center justify-between p-5 border-b border-gray-100 sticky top-0 bg-white z-10">
+            <div className="flex items-center justify-between p-5 border-b border-gray-100 sticky top-0 bg-surface z-10">
               {title && <h2 className="text-lg font-semibold text-text-primary">{title}</h2>}
               <button
                 onClick={onClose}
