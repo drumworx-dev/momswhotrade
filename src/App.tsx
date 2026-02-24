@@ -16,6 +16,31 @@ import { GoalTracker } from './components/goals/GoalTracker';
 import { CommunityTab } from './components/community/CommunityTab';
 import { LoadingSpinner } from './components/shared/LoadingSpinner';
 
+/**
+ * Applies the .dark class to <html> ONLY when the user is inside the main app.
+ * Login, onboarding, and the loading splash always render in light mode regardless
+ * of the user's saved theme preference.
+ *
+ * Lives inside both ThemeProvider (for isDark) and AuthProvider (for auth state),
+ * so it has everything it needs without coupling those two contexts together.
+ */
+function DarkModeGate() {
+  const { isDark } = useTheme();
+  const { user, loading } = useAuth();
+
+  const isMainApp = !loading && !!user?.onboardingComplete;
+
+  useEffect(() => {
+    if (isDark && isMainApp) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDark, isMainApp]);
+
+  return null;
+}
+
 // Fires a page_view event on every client-side route change.
 // Must live inside <BrowserRouter> so useLocation() works.
 const PAGE_TITLES: Record<string, string> = {
@@ -109,6 +134,7 @@ export default function App() {
         <AuthProvider>
           <TradesProvider>
             <GoalsProvider>
+              <DarkModeGate />
               <AppRoutes />
               <ThemedToaster />
             </GoalsProvider>
