@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import type { Trade } from '../../types';
+import type { Trade, PartialClose } from '../../types';
 import { Modal } from '../shared/Modal';
 import { Button } from '../shared/Button';
 import { Input } from '../shared/Input';
@@ -31,6 +31,10 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
   const [showPnLCard, setShowPnLCard] = useState(false);
   const [closedTrade, setClosedTrade] = useState<Trade | null>(null);
 
+  // Partial profit state
+  const [partialPercent, setPartialPercent] = useState<25 | 50 | 75 | null>(null);
+  const [partialPrice, setPartialPrice] = useState('');
+
   // Tracks whether the current close price was auto-filled from TP/SL
   // so switching between the two statuses updates it, but manual entry is never overwritten
   const [closePriceAutoFilled, setClosePriceAutoFilled] = useState(false);
@@ -39,6 +43,48 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
   const leverage = trade.leverage || 1;
 
   const CLOSED_STATUSES: Trade['status'][] = ['closed', 'tp_reached', 'sl_hit'];
+
+  // Partial profit helpers
+  const existingPartials = trade.partialCloses ?? [];
+  const totalPartialPct = existingPartials.reduce((sum, pc) => sum + pc.percent, 0);
+  const remainingFraction = Math.max(0, (100 - totalPartialPct) / 100);
+  // Only show % options that don't push total partials past 75% (leaving at least 25% for final close)
+  const availablePercents = ([25, 50, 75] as const).filter(p => totalPartialPct + p <= 75);
+
+  const handleRecordPartial = () => {
+    if (!partialPercent || !partialPrice) return;
+    const parsedEntry = parseFloat(entryPrice) || trade.entryPrice;
+    const pp = parseFloat(partialPrice);
+    if (isNaN(pp) || pp <= 0) return;
+
+    const result = calculateTradeResult(
+      trade.direction,
+      parsedEntry,
+      pp,
+      trade.positionSize * (partialPercent / 100),
+      leverage,
+    );
+
+    const newPartial: PartialClose = {
+      id: Date.now().toString(),
+      percent: partialPercent,
+      price: pp,
+      pnl: result.profitLoss,
+      date: new Date().toISOString().split('T')[0],
+    };
+
+    const updatedPartials = [...existingPartials, newPartial];
+    const updates: Partial<Trade> = { partialCloses: updatedPartials };
+    updateTrade(trade.id, updates);
+
+    // Immediately reflect in goal tracker
+    const mergedTrades = trades.map(t => t.id === trade.id ? { ...t, ...updates } : t);
+    syncTrades(mergedTrades);
+
+    toast.success(`${partialPercent}% partial banked — ${result.profitLoss >= 0 ? '+' : ''}${formatPrice(result.profitLoss)}`);
+    setPartialPercent(null);
+    setPartialPrice('');
+  };
 
   const handleUpdate = () => {
     const parsedEntry = parseFloat(entryPrice) || trade.entryPrice;
@@ -52,7 +98,9 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
     let profitable = false;
     if (closePrice) {
       const cp = parseFloat(closePrice);
-      const result = calculateTradeResult(trade.direction, parsedEntry, cp, trade.positionSize, leverage);
+      // Use remaining position size after any partial closes
+      const closingPositionSize = trade.positionSize * remainingFraction;
+      const result = calculateTradeResult(trade.direction, parsedEntry, cp, closingPositionSize, leverage);
       Object.assign(updates, {
         closePrice: cp,
         profitLoss: result.profitLoss,
@@ -129,9 +177,14 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
     onClose();
   };
 
-  // Live P&L preview
+  // Live P&L preview (on remaining position after any partials)
+  const parsedPartialPrice = parseFloat(partialPrice);
+  const parsedEntryNum = parseFloat(entryPrice) || trade.entryPrice;
   const previewResult = closePrice && !isNaN(parseFloat(closePrice))
-    ? calculateTradeResult(trade.direction, parseFloat(entryPrice) || trade.entryPrice, parseFloat(closePrice), trade.positionSize, leverage)
+    ? calculateTradeResult(trade.direction, parsedEntryNum, parseFloat(closePrice), trade.positionSize * remainingFraction, leverage)
+    : null;
+  const partialPreview = partialPercent && partialPrice && !isNaN(parsedPartialPrice)
+    ? calculateTradeResult(trade.direction, parsedEntryNum, parsedPartialPrice, trade.positionSize * (partialPercent / 100), leverage)
     : null;
 
   return (
@@ -233,9 +286,11 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
               {previewResult.profitLoss >= 0 ? '+' : ''}{formatPrice(previewResult.profitLoss)}{' '}
               ({formatPercent(previewResult.profitLossPercent)})
             </div>
-            {leverage > 1 && (
+            {(leverage > 1 || remainingFraction < 1) && (
               <div className="text-center text-xs text-text-tertiary mt-1">
-                Includes {leverage}x leverage on {formatPrice(trade.positionSize)} margin
+                {remainingFraction < 1
+                  ? `On ${Math.round(remainingFraction * 100)}% remaining position${leverage > 1 ? ` · ${leverage}x leverage` : ''}`
+                  : `Includes ${leverage}x leverage on ${formatPrice(trade.positionSize)} margin`}
               </div>
             )}
           </div>
@@ -252,8 +307,97 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
           />
         </div>
 
+        {/* ── PARTIAL PROFITS ────────────────────────────────────── */}
+        {!CLOSED_STATUSES.includes(status) && (availablePercents.length > 0 || existingPartials.length > 0) && (
+          <div className="border border-gray-200 rounded-card overflow-hidden">
+            <div className="bg-surface-dim px-4 py-3">
+              <div className="font-semibold text-sm text-text-primary">Take Partial Profits 💸</div>
+              <div className="text-xs text-text-tertiary mt-0.5">
+                Bank a portion now and let the rest ride. Take the money and run.
+              </div>
+            </div>
+
+            <div className="p-4 flex flex-col gap-3">
+              {/* Existing partial closes */}
+              {existingPartials.length > 0 && (
+                <div className="flex flex-col gap-1.5">
+                  {existingPartials.map(pc => (
+                    <div key={pc.id} className="flex items-center justify-between text-xs bg-green-50 rounded-lg px-3 py-2">
+                      <span className="text-text-secondary">
+                        {pc.percent}% closed @ {formatPrice(pc.price)} · {new Date(pc.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </span>
+                      <span className={`font-semibold ${pc.pnl >= 0 ? 'text-accent-success' : 'text-accent-error'}`}>
+                        {pc.pnl >= 0 ? '+' : ''}{formatPrice(pc.pnl)}
+                      </span>
+                    </div>
+                  ))}
+                  <div className="text-xs text-text-tertiary text-right">
+                    {Math.round(remainingFraction * 100)}% of position still running
+                  </div>
+                </div>
+              )}
+
+              {availablePercents.length > 0 && (
+                <>
+                  {/* % selector */}
+                  <div>
+                    <div className="text-xs font-medium text-text-secondary mb-1.5">Close what % now?</div>
+                    <div className="flex gap-2">
+                      {availablePercents.map(p => (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => setPartialPercent(partialPercent === p ? null : p)}
+                          className={`flex-1 py-2 rounded-pill text-sm font-medium border transition-all ${
+                            partialPercent === p
+                              ? 'bg-text-primary text-white border-text-primary'
+                              : 'bg-white border-gray-200 text-text-secondary hover:border-text-primary'
+                          }`}
+                        >
+                          {p}%
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Partial price input */}
+                  {partialPercent && (
+                    <Input
+                      label={`Exit price for ${partialPercent}% of position`}
+                      prefix="$"
+                      type="text"
+                      placeholder="Price you closed this portion at"
+                      value={displayNum(partialPrice)}
+                      onChange={e => setPartialPrice(normalizeInput(e.target.value))}
+                      inputMode="decimal"
+                    />
+                  )}
+
+                  {/* Partial P&L preview */}
+                  {partialPreview && (
+                    <div className={`rounded-lg px-3 py-2 text-center text-sm font-semibold ${
+                      partialPreview.winLoss === 'win' ? 'bg-green-50 text-accent-success' : 'bg-red-50 text-accent-error'
+                    }`}>
+                      {partialPreview.profitLoss >= 0 ? '+' : ''}{formatPrice(partialPreview.profitLoss)} banked on {partialPercent}%
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={handleRecordPartial}
+                    disabled={!partialPercent || !partialPrice}
+                    className="flex items-center justify-center gap-2 w-full py-3 rounded-pill text-sm font-semibold bg-text-primary text-white disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
+                  >
+                    Record Partial & Keep Running
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
         <Button onClick={handleUpdate} fullWidth>
-          {CLOSED_STATUSES.includes(status) ? 'Finalise Trade' : 'Save Changes'}
+          {CLOSED_STATUSES.includes(status) ? `Finalise Trade${remainingFraction < 1 ? ` (${Math.round(remainingFraction * 100)}% remaining)` : ''}` : 'Save Changes'}
         </Button>
         <button
           onClick={handleDelete}
