@@ -100,7 +100,28 @@ export function GoalsProvider({ children }: { children: React.ReactNode }) {
         tradesByDate[d] = (tradesByDate[d] || 0) + t.profitLoss;
       }
     });
-    Object.entries(tradesByDate).forEach(([date, pnl]) => updateDailyGoal(date, pnl));
+
+    // Rebuild daily goals from scratch so deleted trades don't leave stale entries
+    setDailyGoals(() => {
+      const newGoals: DailyGoal[] = [];
+      Object.entries(tradesByDate).forEach(([date, pnl]) => {
+        const row = goalRows.find(r => r.date === date);
+        if (!row) return;
+        const beatGoalBy = pnl - row.dailyGoalAmount;
+        const status: DailyGoal['status'] = pnl >= row.dailyGoalAmount ? 'beat' : 'missed';
+        newGoals.push({
+          userId: user?.uid || '',
+          date,
+          startingBalance: row.startingBalance,
+          expectedEndingBalance: row.expectedEndingBalance,
+          dailyGoalAmount: row.dailyGoalAmount,
+          actualPnL: pnl,
+          beatGoalBy,
+          status,
+        });
+      });
+      return newGoals;
+    });
   };
 
   // Reset everything and return to default settings ($1,000 / 30 days / 2%)

@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, RefreshCw, Pencil, Check, X } from 'lucide-react';
+import { Settings, RefreshCw, Pencil, Check, X } from 'lucide-react';
 import { useGoals } from '../../context/GoalsContext';
 import { useTrades } from '../../context/TradesContext';
 import { formatCurrency, displayNum, normalizeInput } from '../../utils/formatters';
 import { Button } from '../shared/Button';
+import { Modal } from '../shared/Modal';
 import { toast } from 'react-hot-toast';
 import { useAnalytics } from '../../hooks/useAnalytics';
 
@@ -82,6 +83,7 @@ export function GoalTracker() {
   const cancelRowEdit = () => setEditingRow(null);
 
   return (
+    <>
     <div className="flex flex-col h-full bg-bg-primary">
       {/* Header */}
       <div className="bg-white px-4 pb-4 sticky top-0 z-30 shadow-sm page-header">
@@ -91,11 +93,11 @@ export function GoalTracker() {
             <p className="text-text-secondary text-sm">Track your {settings.horizon}-day journey</p>
           </div>
           <button
-            onClick={handleSyncTrades}
+            onClick={() => setSettingsOpen(true)}
             className="flex items-center gap-1.5 text-sm text-text-secondary bg-surface-dim px-3 py-2 rounded-pill hover:bg-bg-secondary transition-colors"
           >
-            <RefreshCw size={14} />
-            Sync Trades
+            <Settings size={15} />
+            Settings
           </button>
         </div>
       </div>
@@ -137,120 +139,7 @@ export function GoalTracker() {
             </div>
           </div>
 
-          {/* ── 2. SETTINGS (2nd from top) ────────────────────────── */}
-          <div className="bg-white rounded-card shadow-sm overflow-hidden">
-            <button
-              onClick={() => setSettingsOpen(!settingsOpen)}
-              className="w-full flex items-center justify-between p-4 text-left"
-            >
-              <span className="font-semibold text-text-primary">Settings</span>
-              {settingsOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-            </button>
-
-            {settingsOpen && (
-              <div className="px-4 pb-4 flex flex-col gap-4 border-t border-gray-100">
-                {/* Starting Balance */}
-                <div>
-                  <label className="block text-sm font-medium text-text-secondary mb-1.5">Starting Balance</label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary">$</span>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={displayNum(startBalance)}
-                      onChange={e => setStartBalance(normalizeInput(e.target.value))}
-                      className="w-full bg-surface-dim border border-gray-200 rounded-input pl-8 pr-4 py-3 text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary"
-                    />
-                  </div>
-                </div>
-
-                {/* Daily Goal % — slider */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-sm font-medium text-text-secondary">Daily Goal %</label>
-                    <span className="text-lg font-bold text-text-primary">{parseFloat(dailyPct || '0').toFixed(1)}%</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0.5"
-                    max="10"
-                    step="0.1"
-                    value={dailyPct}
-                    onChange={e => setDailyPct(e.target.value)}
-                    className="w-full h-2 rounded-full appearance-none cursor-pointer"
-                    style={{
-                      background: `linear-gradient(to right, #2D2D2D ${((parseFloat(dailyPct) - 0.5) / 9.5) * 100}%, #e5e7eb ${((parseFloat(dailyPct) - 0.5) / 9.5) * 100}%)`,
-                    }}
-                  />
-                  <div className="flex justify-between text-xs text-text-tertiary mt-1">
-                    <span>0.5%</span>
-                    <span>10%</span>
-                  </div>
-                </div>
-
-                {/* Time Horizon */}
-                <div>
-                  <label className="block text-sm font-medium text-text-secondary mb-1.5">Time Horizon</label>
-                  <div className="flex gap-2">
-                    {([30, 60, 90] as const).map(h => (
-                      <button
-                        key={h}
-                        onClick={() => updateSettings({ horizon: h })}
-                        className={`flex-1 py-2 rounded-pill text-sm font-medium border transition-all ${
-                          settings.horizon === h
-                            ? 'bg-text-primary text-white border-text-primary'
-                            : 'bg-white border-gray-200 text-text-secondary hover:border-text-primary'
-                        }`}
-                      >
-                        {h} days
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Skip Non-Trading Days */}
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-sm font-medium text-text-secondary">Skip Non-Trading Days</label>
-                  </div>
-                  <p className="text-xs text-text-tertiary mb-3">
-                    Excluded days are skipped entirely — your goal end date shifts forward to compensate.
-                    Trades closed on skipped days are attributed to the next trading day when you sync.
-                  </p>
-                  <div className="flex flex-col gap-3">
-                    {/* Exclude Weekends */}
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-text-primary">Exclude weekends</span>
-                      <button
-                        type="button"
-                        onClick={() => setExcludeWeekends(v => !v)}
-                        className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none ${excludeWeekends ? 'bg-text-primary' : 'bg-gray-200'}`}
-                        aria-pressed={excludeWeekends}
-                      >
-                        <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${excludeWeekends ? 'translate-x-5' : 'translate-x-0'}`} />
-                      </button>
-                    </div>
-                    {/* Exclude US Public Holidays */}
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-text-primary">Exclude US public holidays</span>
-                      <button
-                        type="button"
-                        onClick={() => setExcludeHolidays(v => !v)}
-                        className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none ${excludeHolidays ? 'bg-text-primary' : 'bg-gray-200'}`}
-                        aria-pressed={excludeHolidays}
-                      >
-                        <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${excludeHolidays ? 'translate-x-5' : 'translate-x-0'}`} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <Button onClick={handleSaveSettings} fullWidth>Save Settings</Button>
-              </div>
-            )}
-          </div>
-
-          {/* ── 3. TODAY'S GOAL STATUS ────────────────────────────── */}
+          {/* ── 2. TODAY'S GOAL STATUS ────────────────────────────── */}
           {todayRow && (
             <div className="bg-white rounded-card shadow-sm p-5">
               <div className="text-sm font-medium text-text-secondary mb-1">Today's Goal</div>
@@ -391,5 +280,118 @@ export function GoalTracker() {
         </div>
       </div>
     </div>
+
+    {/* ── SETTINGS MODAL ─────────────────────────────────────── */}
+    <Modal open={settingsOpen} onClose={() => setSettingsOpen(false)} title="Goal Settings">
+      <div className="flex flex-col gap-4">
+        {/* Starting Balance */}
+        <div>
+          <label className="block text-sm font-medium text-text-secondary mb-1.5">Starting Balance</label>
+          <div className="relative">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary">$</span>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={displayNum(startBalance)}
+              onChange={e => setStartBalance(normalizeInput(e.target.value))}
+              className="w-full bg-surface-dim border border-gray-200 rounded-input pl-8 pr-4 py-3 text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary"
+            />
+          </div>
+        </div>
+
+        {/* Daily Goal % — slider */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-sm font-medium text-text-secondary">Daily Goal %</label>
+            <span className="text-lg font-bold text-text-primary">{parseFloat(dailyPct || '0').toFixed(1)}%</span>
+          </div>
+          <input
+            type="range"
+            min="0.5"
+            max="10"
+            step="0.1"
+            value={dailyPct}
+            onChange={e => setDailyPct(e.target.value)}
+            className="w-full h-2 rounded-full appearance-none cursor-pointer"
+            style={{
+              background: `linear-gradient(to right, #2D2D2D ${((parseFloat(dailyPct) - 0.5) / 9.5) * 100}%, #e5e7eb ${((parseFloat(dailyPct) - 0.5) / 9.5) * 100}%)`,
+            }}
+          />
+          <div className="flex justify-between text-xs text-text-tertiary mt-1">
+            <span>0.5%</span>
+            <span>10%</span>
+          </div>
+        </div>
+
+        {/* Time Horizon */}
+        <div>
+          <label className="block text-sm font-medium text-text-secondary mb-1.5">Time Horizon</label>
+          <div className="flex gap-2">
+            {([30, 60, 90] as const).map(h => (
+              <button
+                key={h}
+                onClick={() => updateSettings({ horizon: h })}
+                className={`flex-1 py-2 rounded-pill text-sm font-medium border transition-all ${
+                  settings.horizon === h
+                    ? 'bg-text-primary text-white border-text-primary'
+                    : 'bg-white border-gray-200 text-text-secondary hover:border-text-primary'
+                }`}
+              >
+                {h} days
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Skip Non-Trading Days */}
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-sm font-medium text-text-secondary">Skip Non-Trading Days</label>
+          </div>
+          <p className="text-xs text-text-tertiary mb-3">
+            Excluded days are skipped entirely — your goal end date shifts forward to compensate.
+            Trades closed on skipped days are attributed to the next trading day when you sync.
+          </p>
+          <div className="flex flex-col gap-3">
+            {/* Exclude Weekends */}
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-text-primary">Exclude weekends</span>
+              <button
+                type="button"
+                onClick={() => setExcludeWeekends(v => !v)}
+                className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none ${excludeWeekends ? 'bg-text-primary' : 'bg-gray-200'}`}
+                aria-pressed={excludeWeekends}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${excludeWeekends ? 'translate-x-5' : 'translate-x-0'}`} />
+              </button>
+            </div>
+            {/* Exclude US Public Holidays */}
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-text-primary">Exclude US public holidays</span>
+              <button
+                type="button"
+                onClick={() => setExcludeHolidays(v => !v)}
+                className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none ${excludeHolidays ? 'bg-text-primary' : 'bg-gray-200'}`}
+                aria-pressed={excludeHolidays}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${excludeHolidays ? 'translate-x-5' : 'translate-x-0'}`} />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Resync Trades */}
+        <button
+          onClick={() => { handleSyncTrades(); setSettingsOpen(false); }}
+          className="flex items-center justify-center gap-2 w-full py-3 rounded-pill border border-gray-200 text-sm text-text-secondary hover:border-text-primary hover:text-text-primary transition-colors"
+        >
+          <RefreshCw size={14} />
+          Resync Trades
+        </button>
+
+        <Button onClick={handleSaveSettings} fullWidth>Save Settings</Button>
+      </div>
+    </Modal>
+    </>
   );
 }
