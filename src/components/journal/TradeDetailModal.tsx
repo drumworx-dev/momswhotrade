@@ -19,7 +19,7 @@ interface TradeDetailModalProps {
 
 export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps) {
   const { trades, updateTrade, deleteTrade } = useTrades();
-  const { syncTrades } = useGoals();
+  const { goalRows, syncTrades } = useGoals();
   const [closePrice, setClosePrice] = useState(trade.closePrice?.toString() || '');
   const [status, setStatus] = useState(trade.status);
   const [cause, setCause] = useState(trade.cause || '');
@@ -56,12 +56,53 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
     }
 
     updateTrade(trade.id, updates);
-    toast.success('Trade updated!');
 
-    // Auto-sync to goals whenever a trade is saved with a closed status
     if (CLOSED_STATUSES.includes(status)) {
+      // Merge update in memory (state hasn't propagated yet) so P&L calc is accurate
       const mergedTrades = trades.map(t => t.id === trade.id ? { ...t, ...updates } : t);
       syncTrades(mergedTrades);
+
+      // Compute today's progress against the daily goal and show inline feedback
+      const today = new Date().toISOString().split('T')[0];
+      const todayGoalRow = goalRows.find(r => r.date === today);
+      const todayPnL = mergedTrades
+        .filter(t => {
+          const d = t.closedAt ?? today;
+          return d === today && CLOSED_STATUSES.includes(t.status as Trade['status']);
+        })
+        .reduce((sum, t) => sum + (t.profitLoss || 0), 0);
+
+      if (todayGoalRow && todayGoalRow.dailyGoalAmount > 0) {
+        const pct = Math.round((todayPnL / todayGoalRow.dailyGoalAmount) * 100);
+        const goalHit = pct >= 100;
+        toast.custom((t) => (
+          <div className={`bg-white rounded-card shadow-lg px-4 py-3 flex flex-col gap-2 min-w-[220px] transition-opacity ${t.visible ? 'opacity-100' : 'opacity-0'}`}>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold text-text-primary">
+                {goalHit ? '🎯 Daily goal hit!' : '🎯 Today\'s goal'}
+              </span>
+              <span className={`text-sm font-bold ${goalHit ? 'text-accent-success' : 'text-text-primary'}`}>
+                {Math.min(pct, 999)}%
+              </span>
+            </div>
+            <div className="w-full bg-gray-100 rounded-full h-1.5">
+              <div
+                className={`h-1.5 rounded-full ${goalHit ? 'bg-accent-success' : 'bg-accent-primary'}`}
+                style={{ width: `${Math.min(pct, 100)}%` }}
+              />
+            </div>
+            <div className="text-xs text-text-secondary">
+              {goalHit
+                ? `+${formatPrice(todayPnL - todayGoalRow.dailyGoalAmount)} over target`
+                : `${formatPrice(Math.max(todayPnL, 0))} of ${formatPrice(todayGoalRow.dailyGoalAmount)} daily target`}
+            </div>
+          </div>
+        ), { duration: 4000 });
+      } else {
+        toast.success('Trade closed!');
+      }
+    } else {
+      toast.success('Trade updated!');
     }
 
     if (profitable) {
