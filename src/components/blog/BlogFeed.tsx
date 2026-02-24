@@ -10,6 +10,7 @@ import { GHOST_CONFIG } from '../../config/ghost';
 import { useLoginStreak } from '../../hooks/useLoginStreak';
 import { ConfettiOverlay } from '../shared/ConfettiOverlay';
 import { useAnalytics } from '../../hooks/useAnalytics';
+import { useScrollDepth } from '../../hooks/useScrollDepth';
 import type { BlogPost } from '../../types';
 
 interface GhostPost {
@@ -93,11 +94,16 @@ export function BlogFeed() {
   const filtered =
     activeTab === 'Latest' ? posts : posts.filter((p) => p.tag === activeTab);
 
-  // Ref for the scrollable feed container — reset to top whenever the tab changes.
+  // Ref for the scrollable feed container.
   const feedRef = useRef<HTMLDivElement>(null);
+
+  // Scroll to top instantly on every tab switch.
   useEffect(() => {
     feedRef.current?.scrollTo({ top: 0 });
   }, [activeTab]);
+
+  // Fire depth milestones (25/50/75/100%) per tab session.
+  useScrollDepth(feedRef, activeTab, activeTab);
 
   return (
     <div className="flex flex-col h-full">
