@@ -19,7 +19,8 @@ export interface PartialClose {
   id: string;
   percent: 25 | 50 | 75; // portion of the original position closed
   price: number;          // exit price for this portion
-  pnl: number;            // calculated P&L for this portion
+  pnl: number;            // net P&L for this portion (after fee)
+  fee: number;            // estimated closing fee for this portion
   date: string;           // ISO date YYYY-MM-DD when recorded
 }
 
@@ -44,6 +45,7 @@ export interface Trade {
   profitLoss?: number;
   profitLossPercent?: number;
   winLoss?: 'win' | 'loss';
+  estimatedFee?: number;
   partialCloses?: PartialClose[];
   createdAt: Timestamp;
   updatedAt: Timestamp;
