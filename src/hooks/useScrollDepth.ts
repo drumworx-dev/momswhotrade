@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type RefObject } from 'react';
 import { useAnalytics } from './useAnalytics';
 
 const MILESTONES = [25, 50, 75, 100] as const;
@@ -16,7 +16,7 @@ const MILESTONES = [25, 50, 75, 100] as const;
  *   <div ref={feedRef} className="overflow-y-auto">…</div>
  */
 export function useScrollDepth(
-  containerRef: React.RefObject<HTMLElement>,
+  containerRef: RefObject<HTMLElement | null>,
   tab: string,
   resetKey: unknown = tab,
 ) {
