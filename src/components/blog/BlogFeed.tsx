@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Moon, Sun } from 'lucide-react';
 import { BlogCard } from './BlogCard';
@@ -10,6 +10,7 @@ import { GHOST_CONFIG } from '../../config/ghost';
 import { useLoginStreak } from '../../hooks/useLoginStreak';
 import { ConfettiOverlay } from '../shared/ConfettiOverlay';
 import { useAnalytics } from '../../hooks/useAnalytics';
+import { useScrollDepth } from '../../hooks/useScrollDepth';
 import type { BlogPost } from '../../types';
 
 interface GhostPost {
@@ -92,6 +93,17 @@ export function BlogFeed() {
 
   const filtered =
     activeTab === 'Latest' ? posts : posts.filter((p) => p.tag === activeTab);
+
+  // Ref for the scrollable feed container.
+  const feedRef = useRef<HTMLDivElement>(null);
+
+  // Scroll to top instantly on every tab switch.
+  useEffect(() => {
+    feedRef.current?.scrollTo({ top: 0 });
+  }, [activeTab]);
+
+  // Fire depth milestones (25/50/75/100%) per tab session.
+  useScrollDepth(feedRef, activeTab, activeTab);
 
   return (
     <div className="flex flex-col h-full">
@@ -271,7 +283,7 @@ export function BlogFeed() {
       </AnimatePresence>
 
       {/* Feed */}
-      <div className="flex-1 overflow-y-auto bg-bg-primary px-4 py-4 pb-24">
+      <div ref={feedRef} className="flex-1 overflow-y-auto bg-bg-primary px-4 py-4 pb-24">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
             <div className="w-8 h-8 border-4 border-accent-primary border-t-transparent rounded-full animate-spin" />

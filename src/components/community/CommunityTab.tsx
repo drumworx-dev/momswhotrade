@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { ExternalLink, MessageCircle, Youtube, Instagram, X, CheckCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -8,6 +8,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db, app } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useAnalytics } from '../../hooks/useAnalytics';
+import { useScrollDepth } from '../../hooks/useScrollDepth';
 
 // ─── Product definitions ────────────────────────────────────────────────────
 
@@ -82,6 +83,8 @@ const SUCCESS_CONTENT = {
 export function CommunityTab() {
   const { user } = useAuth();
   const { track } = useAnalytics();
+  const levelUpRef = useRef<HTMLDivElement>(null);
+  useScrollDepth(levelUpRef, 'level-up');
   const [activePlanId, setActivePlanId]   = useState<string | null>(null);
   const [successPlanId, setSuccessPlanId] = useState<string | null>(null);
   const [imgErrors, setImgErrors]         = useState<Record<string, boolean>>({});
@@ -133,7 +136,7 @@ export function CommunityTab() {
         <p className="text-text-secondary text-sm">Grow with Moms Who Trade</p>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 pb-32">
+      <div ref={levelUpRef} className="flex-1 overflow-y-auto px-4 py-4 pb-32">
         <div className="max-w-lg mx-auto flex flex-col gap-4">
 
           {/* Telegram Card */}

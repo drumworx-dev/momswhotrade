@@ -23,6 +23,7 @@ type MwtEvent =
   | { name: 'page_view';                 params: { page_path: string; page_title: string } }
   // Content
   | { name: 'article_read';              params: { article_title: string; article_tag: string } }
+  | { name: 'feed_scroll_depth';         params: { depth_pct: 25 | 50 | 75 | 100; tab: string } }
   // Calculator
   | { name: 'position_calculated';       params: { asset: string; category: string; direction: string } }
   | { name: 'trade_taken';               params: { asset: string; category: string; rr: string } }
