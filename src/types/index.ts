@@ -15,6 +15,14 @@ export interface User {
   lastLoginAt: Timestamp;
 }
 
+export interface PartialClose {
+  id: string;
+  percent: 25 | 50 | 75; // portion of the original position closed
+  price: number;          // exit price for this portion
+  pnl: number;            // calculated P&L for this portion
+  date: string;           // ISO date YYYY-MM-DD when recorded
+}
+
 export interface Trade {
   id: string;
   userId: string;
@@ -36,6 +44,7 @@ export interface Trade {
   profitLoss?: number;
   profitLossPercent?: number;
   winLoss?: 'win' | 'loss';
+  partialCloses?: PartialClose[];
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

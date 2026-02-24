@@ -91,6 +91,13 @@ export function GoalsProvider({ children }: { children: React.ReactNode }) {
 
     const tradesByDate: Record<string, number> = {};
     trades.forEach(t => {
+      // Partial close P&Ls attributed by their individually recorded date
+      (t.partialCloses ?? []).forEach(pc => {
+        const d = attributedDate(pc.date);
+        tradesByDate[d] = (tradesByDate[d] || 0) + pc.pnl;
+      });
+
+      // Final close P&L on remaining position (fully closed trades)
       if (t.profitLoss !== undefined && (t.status === 'closed' || t.status === 'tp_reached' || t.status === 'sl_hit')) {
         const closedDate =
           t.closedAt ??
