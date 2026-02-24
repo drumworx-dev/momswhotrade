@@ -6,6 +6,7 @@ import { Input } from '../shared/Input';
 import { formatPrice, formatPercent, displayNum, normalizeInput } from '../../utils/formatters';
 import { calculateTradeResult } from '../../utils/calculations';
 import { useTrades } from '../../context/TradesContext';
+import { useGoals } from '../../context/GoalsContext';
 import { ConfettiOverlay } from '../shared/ConfettiOverlay';
 import { ShareCardModal } from './ShareCardModal';
 import { toast } from 'react-hot-toast';
@@ -17,7 +18,8 @@ interface TradeDetailModalProps {
 }
 
 export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps) {
-  const { updateTrade, deleteTrade } = useTrades();
+  const { trades, updateTrade, deleteTrade } = useTrades();
+  const { syncTrades } = useGoals();
   const [closePrice, setClosePrice] = useState(trade.closePrice?.toString() || '');
   const [status, setStatus] = useState(trade.status);
   const [cause, setCause] = useState(trade.cause || '');
@@ -55,6 +57,12 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
 
     updateTrade(trade.id, updates);
     toast.success('Trade updated!');
+
+    // Auto-sync to goals whenever a trade is saved with a closed status
+    if (CLOSED_STATUSES.includes(status)) {
+      const mergedTrades = trades.map(t => t.id === trade.id ? { ...t, ...updates } : t);
+      syncTrades(mergedTrades);
+    }
 
     if (profitable) {
       // Trigger confetti → then auto-show P&L share card

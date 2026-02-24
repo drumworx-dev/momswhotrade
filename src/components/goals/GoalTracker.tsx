@@ -8,7 +8,7 @@ import { toast } from 'react-hot-toast';
 import { useAnalytics } from '../../hooks/useAnalytics';
 
 export function GoalTracker() {
-  const { settings, updateSettings, goalRows, dailyGoals, updateDailyGoal, setStartBalanceOverride, clearProjection, projectionEndDate } = useGoals();
+  const { settings, updateSettings, goalRows, dailyGoals, syncTrades, setStartBalanceOverride, clearProjection, projectionEndDate } = useGoals();
   const { trades } = useTrades();
   const { track } = useAnalytics();
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -48,33 +48,7 @@ export function GoalTracker() {
   const gainMultiple = settings.startingBalance > 0 ? (projectedEnd / settings.startingBalance).toFixed(2) : '1.00';
 
   const handleSyncTrades = () => {
-    // Build a set of dates that actually appear in the goal table.
-    // If weekends/holidays are excluded some dates won't be present; in that
-    // case we roll the trade forward to the next date that IS in the table.
-    const goalDateSet = new Set(goalRows.map(r => r.date));
-    const goalDatesSorted = goalRows.map(r => r.date);
-
-    const attributedDate = (rawDate: string): string => {
-      if (goalDateSet.has(rawDate)) return rawDate;
-      // Walk forward up to 14 calendar days to find the next trading day
-      const d = new Date(rawDate + 'T00:00:00');
-      for (let i = 1; i <= 14; i++) {
-        d.setDate(d.getDate() + 1);
-        const s = d.toISOString().split('T')[0];
-        if (goalDateSet.has(s)) return s;
-      }
-      // Fallback: use the last date in the table
-      return goalDatesSorted[goalDatesSorted.length - 1] ?? rawDate;
-    };
-
-    const tradesByDate: Record<string, number> = {};
-    trades.forEach(t => {
-      if (t.profitLoss !== undefined && (t.status === 'closed' || t.status === 'tp_reached' || t.status === 'sl_hit')) {
-        const d = attributedDate(closedDateOf(t) || today);
-        tradesByDate[d] = (tradesByDate[d] || 0) + t.profitLoss;
-      }
-    });
-    Object.entries(tradesByDate).forEach(([date, pnl]) => updateDailyGoal(date, pnl));
+    syncTrades(trades);
     toast.success('Trades synced to goals!');
   };
 
