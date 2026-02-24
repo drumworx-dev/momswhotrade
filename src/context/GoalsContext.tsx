@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import type { DailyGoal } from '../types';
+import type { DailyGoal, Trade } from '../types';
 import { generateGoalTable } from '../utils/calculations';
 import { useAuth } from './AuthContext';
 
@@ -20,6 +20,7 @@ interface GoalsContextType {
   updateDailyGoal: (date: string, actualPnL: number) => void;
   startBalanceOverrides: Record<string, number>;
   setStartBalanceOverride: (date: string, balance: number) => void;
+  syncTrades: (trades: Trade[]) => void;
   clearProjection: () => void;
   projectionEndDate: Date | null;
 }
@@ -66,6 +67,40 @@ export function GoalsProvider({ children }: { children: React.ReactNode }) {
 
   const setStartBalanceOverride = (date: string, balance: number) => {
     setStartBalanceOverrides(prev => ({ ...prev, [date]: balance }));
+  };
+
+  /**
+   * Recalculates actual P&L for every goal date from a fresh set of trades.
+   * Handles weekend/holiday exclusion by rolling a trade's closed date forward
+   * to the next date that actually exists in the goal table.
+   */
+  const syncTrades = (trades: Trade[]) => {
+    const goalDateSet = new Set(goalRows.map(r => r.date));
+    const goalDatesSorted = goalRows.map(r => r.date);
+
+    const attributedDate = (rawDate: string): string => {
+      if (goalDateSet.has(rawDate)) return rawDate;
+      const d = new Date(rawDate + 'T00:00:00');
+      for (let i = 1; i <= 14; i++) {
+        d.setDate(d.getDate() + 1);
+        const s = d.toISOString().split('T')[0];
+        if (goalDateSet.has(s)) return s;
+      }
+      return goalDatesSorted[goalDatesSorted.length - 1] ?? rawDate;
+    };
+
+    const tradesByDate: Record<string, number> = {};
+    trades.forEach(t => {
+      if (t.profitLoss !== undefined && (t.status === 'closed' || t.status === 'tp_reached' || t.status === 'sl_hit')) {
+        const closedDate =
+          t.closedAt ??
+          t.updatedAt?.toDate?.()?.toISOString().split('T')[0] ??
+          todayISO();
+        const d = attributedDate(closedDate);
+        tradesByDate[d] = (tradesByDate[d] || 0) + t.profitLoss;
+      }
+    });
+    Object.entries(tradesByDate).forEach(([date, pnl]) => updateDailyGoal(date, pnl));
   };
 
   // Reset everything and return to default settings ($1,000 / 30 days / 2%)
@@ -122,7 +157,7 @@ export function GoalsProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <GoalsContext.Provider value={{
-      settings, updateSettings, goalRows, dailyGoals, updateDailyGoal,
+      settings, updateSettings, goalRows, dailyGoals, updateDailyGoal, syncTrades,
       startBalanceOverrides, setStartBalanceOverride, clearProjection, projectionEndDate,
     }}>
       {children}
