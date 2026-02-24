@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { Trade } from '../../types';
 import { Modal } from '../shared/Modal';
 import { Button } from '../shared/Button';
@@ -19,7 +19,7 @@ interface TradeDetailModalProps {
 
 export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps) {
   const { trades, updateTrade, deleteTrade } = useTrades();
-  const { syncTrades } = useGoals();
+  const { goalRows, syncTrades } = useGoals();
   const [closePrice, setClosePrice] = useState(trade.closePrice?.toString() || '');
   const [status, setStatus] = useState(trade.status);
   const [cause, setCause] = useState(trade.cause || '');
@@ -29,6 +29,11 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
   const [showConfetti, setShowConfetti] = useState(false);
   const [showPnLCard, setShowPnLCard] = useState(false);
   const [closedTrade, setClosedTrade] = useState<Trade | null>(null);
+
+  // Tracks whether the current close price was auto-filled from TP/SL
+  // so switching between the two statuses updates it, but manual entry is never overwritten
+  const [closePriceAutoFilled, setClosePriceAutoFilled] = useState(false);
+  const closePriceRef = useRef<HTMLDivElement>(null);
 
   const leverage = trade.leverage || 1;
 
@@ -56,12 +61,53 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
     }
 
     updateTrade(trade.id, updates);
-    toast.success('Trade updated!');
 
-    // Auto-sync to goals whenever a trade is saved with a closed status
     if (CLOSED_STATUSES.includes(status)) {
+      // Merge update in memory (state hasn't propagated yet) so P&L calc is accurate
       const mergedTrades = trades.map(t => t.id === trade.id ? { ...t, ...updates } : t);
       syncTrades(mergedTrades);
+
+      // Compute today's progress against the daily goal and show inline feedback
+      const today = new Date().toISOString().split('T')[0];
+      const todayGoalRow = goalRows.find(r => r.date === today);
+      const todayPnL = mergedTrades
+        .filter(t => {
+          const d = t.closedAt ?? today;
+          return d === today && CLOSED_STATUSES.includes(t.status as Trade['status']);
+        })
+        .reduce((sum, t) => sum + (t.profitLoss || 0), 0);
+
+      if (todayGoalRow && todayGoalRow.dailyGoalAmount > 0) {
+        const pct = Math.round((todayPnL / todayGoalRow.dailyGoalAmount) * 100);
+        const goalHit = pct >= 100;
+        toast.custom((t) => (
+          <div className={`bg-white rounded-card shadow-lg px-4 py-3 flex flex-col gap-2 min-w-[220px] transition-opacity ${t.visible ? 'opacity-100' : 'opacity-0'}`}>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold text-text-primary">
+                {goalHit ? '🎯 Daily goal hit!' : '🎯 Today\'s goal'}
+              </span>
+              <span className={`text-sm font-bold ${goalHit ? 'text-accent-success' : 'text-text-primary'}`}>
+                {Math.min(pct, 999)}%
+              </span>
+            </div>
+            <div className="w-full bg-gray-100 rounded-full h-1.5">
+              <div
+                className={`h-1.5 rounded-full ${goalHit ? 'bg-accent-success' : 'bg-accent-primary'}`}
+                style={{ width: `${Math.min(pct, 100)}%` }}
+              />
+            </div>
+            <div className="text-xs text-text-secondary">
+              {goalHit
+                ? `+${formatPrice(todayPnL - todayGoalRow.dailyGoalAmount)} over target`
+                : `${formatPrice(Math.max(todayPnL, 0))} of ${formatPrice(todayGoalRow.dailyGoalAmount)} daily target`}
+            </div>
+          </div>
+        ), { duration: 4000 });
+      } else {
+        toast.success('Trade closed!');
+      }
+    } else {
+      toast.success('Trade updated!');
     }
 
     if (profitable) {
@@ -127,7 +173,22 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
           <label className="block text-sm font-medium text-text-secondary mb-1.5">Status</label>
           <select
             value={status}
-            onChange={e => setStatus(e.target.value as Trade['status'])}
+            onChange={e => {
+              const newStatus = e.target.value as Trade['status'];
+              setStatus(newStatus);
+              // Pre-fill close price from trade data when selecting a terminal status
+              // Only replaces the price if the field is empty OR was previously auto-filled
+              const canAutoFill = !closePrice || closePriceAutoFilled;
+              if (newStatus === 'tp_reached' && trade.takeProfit && canAutoFill) {
+                setClosePrice(trade.takeProfit.toString());
+                setClosePriceAutoFilled(true);
+                setTimeout(() => closePriceRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
+              } else if (newStatus === 'sl_hit' && trade.stopLoss && canAutoFill) {
+                setClosePrice(trade.stopLoss.toString());
+                setClosePriceAutoFilled(true);
+                setTimeout(() => closePriceRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
+              }
+            }}
             className="w-full bg-surface-dim border border-gray-200 rounded-input px-4 py-3 text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary"
           >
             <option value="planned">Planned</option>
@@ -138,15 +199,20 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
           </select>
         </div>
 
-        <Input
-          label="Close Price (optional)"
-          prefix="$"
-          type="text"
-          placeholder="Enter closing price"
-          value={displayNum(closePrice)}
-          onChange={e => setClosePrice(normalizeInput(e.target.value))}
-          inputMode="decimal"
-        />
+        <div ref={closePriceRef}>
+          <Input
+            label="Close Price (optional)"
+            prefix="$"
+            type="text"
+            placeholder="Enter closing price"
+            value={displayNum(closePrice)}
+            onChange={e => {
+              setClosePrice(normalizeInput(e.target.value));
+              setClosePriceAutoFilled(false);
+            }}
+            inputMode="decimal"
+          />
+        </div>
 
         {previewResult && (
           <div className="bg-surface-dim rounded-card p-3">
@@ -173,7 +239,9 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
           />
         </div>
 
-        <Button onClick={handleUpdate} fullWidth>Save Changes</Button>
+        <Button onClick={handleUpdate} fullWidth>
+          {CLOSED_STATUSES.includes(status) ? 'Finalise Trade' : 'Save Changes'}
+        </Button>
         <button
           onClick={handleDelete}
           className="text-accent-error text-sm text-center hover:opacity-80 transition-opacity py-2"
