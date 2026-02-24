@@ -21,6 +21,7 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
   const { trades, updateTrade, deleteTrade } = useTrades();
   const { goalRows, syncTrades } = useGoals();
   const [closePrice, setClosePrice] = useState(trade.closePrice?.toString() || '');
+  const [entryPrice, setEntryPrice] = useState(trade.entryPrice.toString());
   const [status, setStatus] = useState(trade.status);
   const [cause, setCause] = useState(trade.cause || '');
   const [token, setToken] = useState(trade.token || '');
@@ -40,7 +41,8 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
   const CLOSED_STATUSES: Trade['status'][] = ['closed', 'tp_reached', 'sl_hit'];
 
   const handleUpdate = () => {
-    const updates: Partial<Trade> = { status, cause, token };
+    const parsedEntry = parseFloat(entryPrice) || trade.entryPrice;
+    const updates: Partial<Trade> = { status, cause, token, entryPrice: parsedEntry };
 
     // Set closedAt date the first time a trade transitions to a closed status
     if (CLOSED_STATUSES.includes(status) && !trade.closedAt) {
@@ -50,7 +52,7 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
     let profitable = false;
     if (closePrice) {
       const cp = parseFloat(closePrice);
-      const result = calculateTradeResult(trade.direction, trade.entryPrice, cp, trade.positionSize, leverage);
+      const result = calculateTradeResult(trade.direction, parsedEntry, cp, trade.positionSize, leverage);
       Object.assign(updates, {
         closePrice: cp,
         profitLoss: result.profitLoss,
@@ -129,7 +131,7 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
 
   // Live P&L preview
   const previewResult = closePrice && !isNaN(parseFloat(closePrice))
-    ? calculateTradeResult(trade.direction, trade.entryPrice, parseFloat(closePrice), trade.positionSize, leverage)
+    ? calculateTradeResult(trade.direction, parseFloat(entryPrice) || trade.entryPrice, parseFloat(closePrice), trade.positionSize, leverage)
     : null;
 
   return (
@@ -138,10 +140,9 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
       <div className="flex flex-col gap-4">
         {/* Locked fields */}
         <div className="bg-surface-dim rounded-card p-4">
-          <h4 className="text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-3">Trade Details (Locked)</h4>
+          <h4 className="text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-3">Trade Plan</h4>
           <div className="grid grid-cols-2 gap-2 text-sm">
             {([
-              ['Entry', formatPrice(trade.entryPrice, trade.assetCategory)],
               ['Stop Loss', formatPrice(trade.stopLoss, trade.assetCategory)],
               ['Take Profit', formatPrice(trade.takeProfit, trade.assetCategory)],
               ['Direction', trade.direction?.toUpperCase()],
@@ -164,6 +165,16 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
         </div>
 
         {/* Editable fields */}
+        <Input
+          label="Entry Price"
+          prefix="$"
+          type="text"
+          placeholder="Actual entry price"
+          value={displayNum(entryPrice)}
+          onChange={e => setEntryPrice(normalizeInput(e.target.value))}
+          inputMode="decimal"
+        />
+
         <Input
           label="Token / Asset"
           placeholder="BITCOIN, SOLANA, TESLA..."
