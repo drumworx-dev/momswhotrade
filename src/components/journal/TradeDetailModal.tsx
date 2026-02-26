@@ -27,6 +27,13 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
   const [cause, setCause] = useState(trade.cause || '');
   const [token, setToken] = useState(trade.token || '');
 
+  // Helpers for local-date strings (avoids UTC off-by-one for non-UTC users)
+  const localDateStr = (d = new Date()) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+  // Default close date to today; user can backdate
+  const [closedDate, setClosedDate] = useState(trade.closedAt || localDateStr());
+
   // Confetti + P&L card flow for profitable closes
   const [showConfetti, setShowConfetti] = useState(false);
   const [showPnLCard, setShowPnLCard] = useState(false);
@@ -75,7 +82,7 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
       price: pp,
       pnl: result.profitLoss,
       fee: result.fee,
-      date: new Date().toISOString().split('T')[0],
+      date: localDateStr(),
     };
 
     const updatedPartials = [...existingPartials, newPartial];
@@ -93,9 +100,9 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
     const parsedEntry = parseFloat(entryPrice) || trade.entryPrice;
     const updates: Partial<Trade> = { status, cause, token, entryPrice: parsedEntry };
 
-    // Set closedAt date the first time a trade transitions to a closed status
-    if (CLOSED_STATUSES.includes(status) && !trade.closedAt) {
-      updates.closedAt = new Date().toISOString().split('T')[0];
+    // Set closedAt using the selected date (allows backdating)
+    if (CLOSED_STATUSES.includes(status)) {
+      updates.closedAt = closedDate;
     }
 
     let profitable = false;
@@ -121,8 +128,8 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
       const mergedTrades = trades.map(t => t.id === trade.id ? { ...t, ...updates } : t);
       syncTrades(mergedTrades);
 
-      // Compute today's progress against the daily goal and show inline feedback
-      const today = new Date().toISOString().split('T')[0];
+      // Compute progress for the close date against the daily goal and show inline feedback
+      const today = closedDate;
       const todayGoalRow = goalRows.find(r => r.date === today);
       const todayPnL = mergedTrades
         .filter(t => {
@@ -270,6 +277,19 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
             <option value="sl_hit">SL Hit 🛑</option>
           </select>
         </div>
+
+        {CLOSED_STATUSES.includes(status) && (
+          <div>
+            <label className="block text-sm font-medium text-text-secondary mb-1.5">Close Date</label>
+            <input
+              type="date"
+              value={closedDate}
+              max={localDateStr()}
+              onChange={e => setClosedDate(e.target.value)}
+              className="w-full bg-surface-dim border border-gray-200 rounded-input px-4 py-3 text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary"
+            />
+          </div>
+        )}
 
         <div ref={closePriceRef}>
           <Input

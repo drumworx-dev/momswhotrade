@@ -28,7 +28,8 @@ export function GoalTracker() {
     setExcludeHolidays(settings.excludeHolidays ?? false);
   }, [settings.startingBalance, settings.dailyGoalPercent, settings.excludeWeekends, settings.excludeHolidays]);
 
-  const today = new Date().toISOString().split('T')[0];
+  const d0 = new Date();
+  const today = `${d0.getFullYear()}-${String(d0.getMonth() + 1).padStart(2, '0')}-${String(d0.getDate()).padStart(2, '0')}`;
   const todayRow = goalRows.find(r => r.date === today);
 
   // Use closedAt date if available, fall back to updatedAt
@@ -267,7 +268,7 @@ export function GoalTracker() {
                             : isToday
                             ? '🎯'
                             : isPast
-                            ? '⏸️'
+                            ? '—'
                             : '·'}
                         </td>
                       </tr>

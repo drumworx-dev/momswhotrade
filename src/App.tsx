@@ -9,6 +9,7 @@ import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { LoginScreen } from './components/auth/LoginScreen';
 import { OnboardingFlow } from './components/auth/OnboardingFlow';
 import { BottomNav } from './components/shared/BottomNav';
+import { OnboardingHints } from './components/shared/OnboardingHints';
 import { BlogFeed } from './components/blog/BlogFeed';
 import { TradingCalculator } from './components/calculator/TradingCalculator';
 import { TradeJournal } from './components/journal/TradeJournal';
@@ -123,6 +124,7 @@ function AppRoutes() {
         </Routes>
       </main>
       <BottomNav />
+      <OnboardingHints />
     </div>
   );
 }
