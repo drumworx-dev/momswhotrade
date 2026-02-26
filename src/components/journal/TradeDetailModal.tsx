@@ -32,9 +32,10 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
   const [showPnLCard, setShowPnLCard] = useState(false);
   const [closedTrade, setClosedTrade] = useState<Trade | null>(null);
 
-  // Partial profit state
-  const [partialPercent, setPartialPercent] = useState<25 | 50 | 75 | null>(null);
-  const [partialPrice, setPartialPrice] = useState('');
+  // TP slot state — which slot is open for input, and its pending values
+  const [activeTP, setActiveTP] = useState<number | null>(null);
+  const [tpInputPercent, setTpInputPercent] = useState<25 | 50 | 75 | null>(null);
+  const [tpInputPrice, setTpInputPrice] = useState('');
 
   // Tracks whether the current close price was auto-filled from TP/SL
   // so switching between the two statuses updates it, but manual entry is never overwritten
@@ -49,27 +50,28 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
   const existingPartials = trade.partialCloses ?? [];
   const totalPartialPct = existingPartials.reduce((sum, pc) => sum + pc.percent, 0);
   const remainingFraction = Math.max(0, (100 - totalPartialPct) / 100);
-  // Only show % options that don't push total partials past 75% (leaving at least 25% for final close)
-  const availablePercents = ([25, 50, 75] as const).filter(p => totalPartialPct + p <= 75);
 
-  const handleRecordPartial = () => {
-    if (!partialPercent || !partialPrice) return;
+  const openTP = (index: number) => {
+    setActiveTP(index);
+    setTpInputPercent(null);
+    setTpInputPrice('');
+  };
+
+  const handleRecordTP = (tpIndex: number) => {
+    if (!tpInputPercent || !tpInputPrice) return;
     const parsedEntry = parseFloat(entryPrice) || trade.entryPrice;
-    const pp = parseFloat(partialPrice);
+    const pp = parseFloat(tpInputPrice);
     if (isNaN(pp) || pp <= 0) return;
 
     const result = calculateTradeResult(
-      trade.direction,
-      parsedEntry,
-      pp,
-      trade.positionSize * (partialPercent / 100),
-      leverage,
-      feePercent,
+      trade.direction, parsedEntry, pp,
+      trade.positionSize * (tpInputPercent / 100),
+      leverage, feePercent,
     );
 
     const newPartial: PartialClose = {
       id: Date.now().toString(),
-      percent: partialPercent,
+      percent: tpInputPercent,
       price: pp,
       pnl: result.profitLoss,
       fee: result.fee,
@@ -79,14 +81,12 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
     const updatedPartials = [...existingPartials, newPartial];
     const updates: Partial<Trade> = { partialCloses: updatedPartials };
     updateTrade(trade.id, updates);
+    syncTrades(trades.map(t => t.id === trade.id ? { ...t, ...updates } : t));
 
-    // Immediately reflect in goal tracker
-    const mergedTrades = trades.map(t => t.id === trade.id ? { ...t, ...updates } : t);
-    syncTrades(mergedTrades);
-
-    toast.success(`${partialPercent}% partial banked — ${result.profitLoss >= 0 ? '+' : ''}${formatPrice(result.profitLoss)}`);
-    setPartialPercent(null);
-    setPartialPrice('');
+    toast.success(`TP${tpIndex + 1} banked — ${result.profitLoss >= 0 ? '+' : ''}${formatPrice(result.profitLoss)}`);
+    setActiveTP(null);
+    setTpInputPercent(null);
+    setTpInputPrice('');
   };
 
   const handleUpdate = () => {
@@ -181,14 +181,16 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
     onClose();
   };
 
-  // Live P&L preview (on remaining position after any partials)
-  const parsedPartialPrice = parseFloat(partialPrice);
+  // Live P&L preview for the final close (on remaining position after any partials)
   const parsedEntryNum = parseFloat(entryPrice) || trade.entryPrice;
   const previewResult = closePrice && !isNaN(parseFloat(closePrice))
     ? calculateTradeResult(trade.direction, parsedEntryNum, parseFloat(closePrice), trade.positionSize * remainingFraction, leverage, feePercent)
     : null;
-  const partialPreview = partialPercent && partialPrice && !isNaN(parsedPartialPrice)
-    ? calculateTradeResult(trade.direction, parsedEntryNum, parsedPartialPrice, trade.positionSize * (partialPercent / 100), leverage, feePercent)
+
+  // Live preview for the currently-open TP slot
+  const tpParsedPrice = parseFloat(tpInputPrice);
+  const tpPreview = activeTP !== null && tpInputPercent && tpInputPrice && !isNaN(tpParsedPrice)
+    ? calculateTradeResult(trade.direction, parsedEntryNum, tpParsedPrice, trade.positionSize * (tpInputPercent / 100), leverage, feePercent)
     : null;
 
   return (
@@ -315,96 +317,163 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
         </div>
 
         {/* ── PARTIAL PROFITS ────────────────────────────────────── */}
-        {!CLOSED_STATUSES.includes(status) && (availablePercents.length > 0 || existingPartials.length > 0) && (
+        {!CLOSED_STATUSES.includes(status) && (
           <div className="border border-gray-200 rounded-card overflow-hidden">
-            <div className="bg-surface-dim px-4 py-3">
-              <div className="font-semibold text-sm text-text-primary">Take Partial Profits 💸</div>
-              <div className="text-xs text-text-tertiary mt-0.5">
-                Bank a portion now and let the rest ride. Take the money and run.
+            {/* Header */}
+            <div className="bg-surface-dim px-4 py-3 flex items-center justify-between">
+              <div>
+                <div className="font-semibold text-sm text-text-primary">Partial Profits 💸</div>
+                <div className="text-xs text-text-tertiary mt-0.5">Take the money and run — up to 3 exits</div>
               </div>
-            </div>
-
-            <div className="p-4 flex flex-col gap-3">
-              {/* Existing partial closes */}
-              {existingPartials.length > 0 && (
-                <div className="flex flex-col gap-1.5">
-                  {existingPartials.map(pc => (
-                    <div key={pc.id} className="flex items-center justify-between text-xs bg-green-50 rounded-lg px-3 py-2">
-                      <span className="text-text-secondary">
-                        {pc.percent}% closed @ {formatPrice(pc.price)} · {new Date(pc.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      </span>
-                      <span className={`font-semibold ${pc.pnl >= 0 ? 'text-accent-success' : 'text-accent-error'}`}>
-                        {pc.pnl >= 0 ? '+' : ''}{formatPrice(pc.pnl)}
-                      </span>
-                    </div>
-                  ))}
-                  <div className="text-xs text-text-tertiary text-right">
-                    {Math.round(remainingFraction * 100)}% of position still running
-                  </div>
+              {existingPartials.length > 0 && remainingFraction > 0 && (
+                <div className="text-xs font-medium text-text-secondary bg-white border border-gray-200 rounded-pill px-2.5 py-1">
+                  {Math.round(remainingFraction * 100)}% running
                 </div>
               )}
+            </div>
 
-              {availablePercents.length > 0 && (
-                <>
-                  {/* % selector */}
-                  <div>
-                    <div className="text-xs font-medium text-text-secondary mb-1.5">Close what % now?</div>
-                    <div className="flex gap-2">
-                      {availablePercents.map(p => (
-                        <button
-                          key={p}
-                          type="button"
-                          onClick={() => setPartialPercent(partialPercent === p ? null : p)}
-                          className={`flex-1 py-2 rounded-pill text-sm font-medium border transition-all ${
-                            partialPercent === p
-                              ? 'bg-text-primary text-white border-text-primary'
-                              : 'bg-white border-gray-200 text-text-secondary hover:border-text-primary'
-                          }`}
-                        >
-                          {p}%
-                        </button>
-                      ))}
+            {/* TP1 / TP2 / TP3 rows */}
+            {[0, 1, 2].map((tpIndex) => {
+              const label = `TP${tpIndex + 1}`;
+              const recorded = existingPartials[tpIndex];
+              const isLocked = tpIndex > 0 && !existingPartials[tpIndex - 1];
+              const isActive = activeTP === tpIndex;
+              const takenBefore = existingPartials.slice(0, tpIndex).reduce((s, p) => s + p.percent, 0);
+              const slotOptions = ([25, 50, 75] as const).filter(p => takenBefore + p <= 100);
+              const fullyTaken = totalPartialPct >= 100;
+
+              // ── Recorded row ────────────────────────────────────
+              if (recorded) {
+                return (
+                  <div key={tpIndex} className="border-t border-gray-100 px-4 py-3 flex items-center justify-between bg-green-50/60">
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-xs font-bold text-accent-success w-7">{label}</span>
+                      <div className="flex flex-col">
+                        <span className="text-xs font-medium text-text-primary">
+                          {recorded.percent}% @ {formatPrice(recorded.price)}
+                        </span>
+                        <span className="text-xs text-text-tertiary">
+                          {new Date(recorded.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          {' · '}fee −{formatPrice(recorded.fee)}
+                        </span>
+                      </div>
+                    </div>
+                    <span className={`text-sm font-bold ${recorded.pnl >= 0 ? 'text-accent-success' : 'text-accent-error'}`}>
+                      {recorded.pnl >= 0 ? '+' : ''}{formatPrice(recorded.pnl)}
+                    </span>
+                  </div>
+                );
+              }
+
+              // ── Locked row ──────────────────────────────────────
+              if (isLocked || fullyTaken) {
+                return (
+                  <div key={tpIndex} className="border-t border-gray-100 px-4 py-3 flex items-center gap-2.5 opacity-35">
+                    <span className="text-xs font-bold text-text-tertiary w-7">{label}</span>
+                    <span className="text-xs text-text-tertiary">
+                      {fullyTaken ? 'Position fully closed via partials' : `Record ${label.replace(/\d/, String(tpIndex))} first`}
+                    </span>
+                  </div>
+                );
+              }
+
+              // ── Active (expanded) row ───────────────────────────
+              if (isActive) {
+                return (
+                  <div key={tpIndex} className="border-t border-gray-100">
+                    <div className="px-4 pt-3 pb-2 flex items-center gap-2">
+                      <span className="text-xs font-bold text-text-primary w-7">{label}</span>
+                      <span className="text-xs text-text-tertiary">
+                        {slotOptions.length > 0
+                          ? `Up to ${100 - takenBefore}% available`
+                          : 'No more position to close'}
+                      </span>
+                    </div>
+
+                    <div className="px-4 pb-4 flex flex-col gap-3">
+                      {/* Two-column: % pills left, price input right */}
+                      <div className="flex gap-3 items-start">
+                        {/* Left column — % pills stacked */}
+                        <div className="flex flex-col gap-1.5 w-[72px] flex-shrink-0">
+                          <div className="text-xs text-text-tertiary font-medium mb-0.5">% to close</div>
+                          {slotOptions.map(p => (
+                            <button
+                              key={p}
+                              type="button"
+                              onClick={() => setTpInputPercent(tpInputPercent === p ? null : p)}
+                              className={`py-2 rounded-pill text-sm font-semibold border transition-all ${
+                                tpInputPercent === p
+                                  ? 'bg-text-primary text-white border-text-primary'
+                                  : 'bg-white border-gray-200 text-text-secondary hover:border-text-primary'
+                              }`}
+                            >
+                              {p}%
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* Right column — price input + preview */}
+                        <div className="flex-1 flex flex-col gap-2">
+                          <div className="text-xs text-text-tertiary font-medium mb-0.5">Exit price</div>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary text-sm">$</span>
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              placeholder="0.00"
+                              value={displayNum(tpInputPrice)}
+                              onChange={e => setTpInputPrice(normalizeInput(e.target.value))}
+                              className="w-full bg-surface-dim border border-gray-200 rounded-input pl-7 pr-3 py-2.5 text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary text-sm"
+                            />
+                          </div>
+
+                          {tpPreview && (
+                            <div className={`rounded-lg px-3 py-2 text-center ${tpPreview.winLoss === 'win' ? 'bg-green-50' : 'bg-red-50'}`}>
+                              <div className={`text-sm font-bold ${tpPreview.winLoss === 'win' ? 'text-accent-success' : 'text-accent-error'}`}>
+                                {tpPreview.profitLoss >= 0 ? '+' : ''}{formatPrice(tpPreview.profitLoss)}
+                              </div>
+                              <div className="text-xs text-text-tertiary">fee −{formatPrice(tpPreview.fee)}</div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleRecordTP(tpIndex)}
+                        disabled={!tpInputPercent || !tpInputPrice}
+                        className="w-full py-2.5 rounded-pill text-sm font-semibold bg-text-primary text-white disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
+                      >
+                        Record {label} & Keep Running
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTP(null)}
+                        className="text-xs text-center text-text-tertiary hover:text-text-secondary transition-colors"
+                      >
+                        Cancel
+                      </button>
                     </div>
                   </div>
+                );
+              }
 
-                  {/* Partial price input */}
-                  {partialPercent && (
-                    <Input
-                      label={`Exit price for ${partialPercent}% of position`}
-                      prefix="$"
-                      type="text"
-                      placeholder="Price you closed this portion at"
-                      value={displayNum(partialPrice)}
-                      onChange={e => setPartialPrice(normalizeInput(e.target.value))}
-                      inputMode="decimal"
-                    />
-                  )}
-
-                  {/* Partial P&L preview */}
-                  {partialPreview && (
-                    <div className={`rounded-lg px-3 py-2 text-center ${
-                      partialPreview.winLoss === 'win' ? 'bg-green-50' : 'bg-red-50'
-                    }`}>
-                      <div className={`text-sm font-semibold ${partialPreview.winLoss === 'win' ? 'text-accent-success' : 'text-accent-error'}`}>
-                        {partialPreview.profitLoss >= 0 ? '+' : ''}{formatPrice(partialPreview.profitLoss)} banked on {partialPercent}%
-                      </div>
-                      <div className="text-xs text-text-tertiary mt-0.5">
-                        Est. fee: −{formatPrice(partialPreview.fee)}
-                      </div>
-                    </div>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={handleRecordPartial}
-                    disabled={!partialPercent || !partialPrice}
-                    className="flex items-center justify-center gap-2 w-full py-3 rounded-pill text-sm font-semibold bg-text-primary text-white disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
-                  >
-                    Record Partial & Keep Running
-                  </button>
-                </>
-              )}
-            </div>
+              // ── Tap-to-open row ─────────────────────────────────
+              return (
+                <button
+                  key={tpIndex}
+                  type="button"
+                  onClick={() => openTP(tpIndex)}
+                  className="w-full border-t border-gray-100 px-4 py-3.5 flex items-center justify-between hover:bg-surface-dim transition-colors text-left"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-xs font-bold text-text-tertiary w-7">{label}</span>
+                    <span className="text-sm text-text-secondary">Tap to record partial</span>
+                  </div>
+                  <span className="text-lg text-text-tertiary leading-none">+</span>
+                </button>
+              );
+            })}
           </div>
         )}
 
