@@ -32,7 +32,8 @@ export function TradeJournal() {
   useAuth();
   const [activeFilter, setActiveFilter] = useState<StatusFilter>('All');
   const [activeCategory, setActiveCategory] = useState<AssetCategory | 'all'>('all');
-  const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
+  const [selectedTradeId, setSelectedTradeId] = useState<string | null>(null);
+  const selectedTrade = selectedTradeId ? (trades.find(t => t.id === selectedTradeId) ?? null) : null;
   const [showNewTrade, setShowNewTrade] = useState(false);
 
   const filtered = trades
@@ -207,7 +208,7 @@ export function TradeJournal() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.04 }}
               >
-                <TradeCard trade={trade} onClick={() => setSelectedTrade(trade)} />
+                <TradeCard trade={trade} onClick={() => setSelectedTradeId(trade.id)} />
               </motion.div>
             ))
           )}
@@ -219,7 +220,7 @@ export function TradeJournal() {
         <TradeDetailModal
           trade={selectedTrade}
           open={!!selectedTrade}
-          onClose={() => setSelectedTrade(null)}
+          onClose={() => setSelectedTradeId(null)}
         />
       )}
 

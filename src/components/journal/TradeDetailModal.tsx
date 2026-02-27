@@ -364,6 +364,7 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
 
               // ── Recorded row ────────────────────────────────────
               if (recorded) {
+                const marginClosed = trade.positionSize * (recorded.percent / 100);
                 return (
                   <div key={tpIndex} className="border-t border-gray-100 px-4 py-3 flex items-center justify-between bg-green-50/60">
                     <div className="flex items-center gap-2.5">
@@ -371,6 +372,9 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
                       <div className="flex flex-col">
                         <span className="text-xs font-medium text-text-primary">
                           {recorded.percent}% @ {formatPrice(recorded.price)}
+                        </span>
+                        <span className="text-xs text-text-tertiary">
+                          {formatPrice(marginClosed)} margin closed
                         </span>
                         <span className="text-xs text-text-tertiary">
                           {new Date(recorded.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
