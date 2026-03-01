@@ -205,7 +205,7 @@ export function CommunityTab() {
                 <div className="relative w-full aspect-[16/9] overflow-hidden">
                   {!imageErrored ? (
                     <img
-                      src={product.image}
+                      src={`${product.image}?v=2`}
                       alt={product.title}
                       className="w-full h-full object-cover"
                       onError={() => setImgErrors(prev => ({ ...prev, [product.planId]: true }))}
