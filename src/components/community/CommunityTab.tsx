@@ -23,13 +23,19 @@ const PRODUCTS = [
     planId: PLAN_CALL,
     title: '1:1 Trading Kickstart Call',
     subtitle: 'with Mel — 60 minutes',
-    price: '$97',
+    price: '$99',
+    discount: '-20% off',
     badge: 'One-time',
+    waitlist: '',
     learnMoreUrl: 'https://whop.com/moms-who-trade/1-1-trading-kickstart-call-with-mel/',
-    accent: '#7C3AED',
-    // Drop your image in public/products/call-kickstart.jpg (any JPG/PNG/WebP, ~1200×675px recommended)
+    // Emerald green — badge, bullets, Whop link (#2A6B49 = 5.97:1 vs white, AA ✅)
+    accent: '#2A6B49',
+    // Dark pill sits cleanly over any photo background
+    pillBg: '#1A1A1A',
+    // CTA button matches the brand accent
+    ctaBg: '#2A6B49',
     image: '/products/call-kickstart.jpg',
-    imageFallbackGradient: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)',
+    imageFallbackGradient: 'linear-gradient(135deg, #edfaf3 0%, #c5e8d5 100%)',
     emoji: '📞',
     bullets: [
       '60-min private call with Mel',
@@ -43,13 +49,19 @@ const PRODUCTS = [
     planId: PLAN_WORKSHOP,
     title: 'First $500 in 30 Days',
     subtitle: 'Foundation Workshop',
-    price: '$127',
+    price: '$149',
+    discount: '-20% off',
     badge: 'Workshop',
+    waitlist: 'Waitlist Now Open',
     learnMoreUrl: 'https://whop.com/moms-who-trade/first-500-in-30-days-workshop/',
-    accent: '#059669',
-    // Drop your image in public/products/workshop-500.jpg (any JPG/PNG/WebP, ~1200×675px recommended)
+    // Near-black — badge, bullets, Whop link (near-black on white = AAA ✅)
+    accent: '#1A1A1A',
+    // Dark terracotta pill (#96522A = 5.56:1 vs white, AA ✅)
+    pillBg: '#96522A',
+    // CTA button — near-black, bold and premium
+    ctaBg: '#1A1A1A',
     image: '/products/workshop-500.jpg',
-    imageFallbackGradient: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)',
+    imageFallbackGradient: 'linear-gradient(135deg, #fdf2eb 0%, #f5dbc9 100%)',
     emoji: '🚀',
     bullets: [
       'Step-by-step beginner curriculum',
@@ -206,10 +218,10 @@ export function CommunityTab() {
                       <span className="text-7xl">{product.emoji}</span>
                     </div>
                   )}
-                  {/* Price pill overlaid on image */}
+                  {/* Price pill overlaid on image — always dark so it reads on any photo */}
                   <div
                     className="absolute top-3 right-3 text-white text-sm font-bold px-3 py-1 rounded-full shadow-lg"
-                    style={{ background: product.accent }}
+                    style={{ background: product.pillBg }}
                   >
                     {product.price}
                   </div>
@@ -217,7 +229,7 @@ export function CommunityTab() {
 
                 {/* Card content */}
                 <div className="px-5 pt-4 pb-5">
-                  {/* Badge + Whop link row */}
+                  {/* Badge + discount chip + Whop link row */}
                   <div className="flex items-center gap-2 mb-3">
                     <span
                       className="text-xs font-semibold px-2.5 py-0.5 rounded-full text-white"
@@ -225,6 +237,11 @@ export function CommunityTab() {
                     >
                       {product.badge}
                     </span>
+                    {product.discount && (
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full border border-text-tertiary text-text-tertiary">
+                        {product.discount}
+                      </span>
+                    )}
                     <a
                       href={product.learnMoreUrl}
                       target="_blank"
@@ -255,10 +272,15 @@ export function CommunityTab() {
                       setActivePlanId(product.planId);
                     }}
                     className="flex items-center justify-center w-full text-white rounded-pill px-6 py-4 font-semibold shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 min-h-[52px]"
-                    style={{ background: product.accent }}
+                    style={{ background: product.ctaBg }}
                   >
                     {product.cta} →
                   </button>
+                  {product.waitlist && (
+                    <p className="text-center text-xs font-medium text-text-tertiary mt-2">
+                      {product.waitlist}
+                    </p>
+                  )}
                 </div>
               </motion.div>
             );
