@@ -318,44 +318,54 @@ export function CommunityTab() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="bg-white rounded-card shadow-sm p-6"
+            className="bg-white dark:bg-surface-dim rounded-card shadow-sm p-6"
           >
             <h2 className="text-lg font-bold text-text-primary mb-4">Follow Us</h2>
-            <div className="flex flex-col gap-3">
+            <div className="flex gap-3">
               <a
                 href="https://www.youtube.com/@moms_who_trade"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-3 w-full bg-red-50 text-red-700 rounded-xl px-5 py-4 font-semibold hover:bg-red-100 transition-all"
+                aria-label="YouTube"
+                className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+                style={{ background: '#96522A' }}
               >
-                <Youtube size={22} className="flex-shrink-0" />
-                <span className="flex-1">YouTube — @moms_who_trade</span>
-                <ExternalLink size={14} className="opacity-60" />
+                <Youtube size={28} className="text-white" />
               </a>
               <a
                 href="https://www.instagram.com/moms_who_trade/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-3 w-full rounded-xl px-5 py-4 font-semibold transition-all"
-                style={{ background: 'linear-gradient(135deg, #fdf3f8 0%, #f0e8ff 100%)', color: '#9333ea' }}
+                aria-label="Instagram"
+                className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+                style={{ background: '#2A6B49' }}
               >
-                <Instagram size={22} className="flex-shrink-0" />
-                <span className="flex-1">Instagram — @moms_who_trade</span>
-                <ExternalLink size={14} className="opacity-60" />
+                <Instagram size={28} className="text-white" />
               </a>
             </div>
           </motion.div>
 
-          {/* Coming Soon */}
+          {/* In-App Chat */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.25 }}
-            className="bg-surface-dim rounded-card p-5 text-center border-2 border-dashed border-gray-200"
+            className="bg-white dark:bg-surface-dim rounded-card shadow-sm p-6"
           >
-            <MessageCircle size={28} className="text-text-tertiary mx-auto mb-2" />
-            <h3 className="font-semibold text-text-secondary mb-1">In-app chat coming soon</h3>
-            <p className="text-xs text-text-tertiary">Connect with the community directly in the app</p>
+            <div className="flex items-center gap-2 mb-3">
+              <h2 className="text-lg font-bold text-text-primary">In-App Chat</h2>
+              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full text-white" style={{ background: '#2A6B49' }}>
+                Premium Feature
+              </span>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: '#edfaf3' }}>
+                <MessageCircle size={20} style={{ color: '#2A6B49' }} />
+              </div>
+              <p className="text-sm text-text-secondary leading-relaxed">
+                Live chat with Mel and fellow community members — right inside the app, no extra apps needed. Coming soon for paid plan members.
+              </p>
+            </div>
           </motion.div>
         </div>
       </div>
