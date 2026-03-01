@@ -3,6 +3,7 @@ import { ArrowLeft, Minus, Plus } from 'lucide-react';
 import { GHOST_CONFIG } from '../../config/ghost';
 import type { BlogPost } from '../../types';
 import { formatDate } from '../../utils/formatters';
+import { ImageLightbox } from '../shared/ImageLightbox';
 
 interface ArticleReaderProps {
   post: BlogPost;
@@ -15,6 +16,7 @@ export function ArticleReader({ post, onClose }: ArticleReaderProps) {
   const [html, setHtml] = useState('');
   const [loading, setLoading] = useState(true);
   const [fontSizeIdx, setFontSizeIdx] = useState(1); // default = 16px
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
 
   const fontSize = FONT_SIZES[fontSizeIdx];
 
@@ -74,8 +76,11 @@ export function ArticleReader({ post, onClose }: ArticleReaderProps) {
 
       {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto">
-        {/* Feature image */}
-        <div className="relative h-52 overflow-hidden">
+        {/* Feature image — tap to open in lightbox */}
+        <div
+          className="relative h-52 overflow-hidden cursor-zoom-in"
+          onClick={() => post.feature_image && setLightboxSrc(post.feature_image)}
+        >
           <img
             src={post.feature_image}
             alt={post.title}
@@ -122,6 +127,10 @@ export function ArticleReader({ post, onClose }: ArticleReaderProps) {
               className="article-body text-text-primary leading-relaxed"
               style={{ fontSize }}
               dangerouslySetInnerHTML={{ __html: html }}
+              onClick={e => {
+                const el = e.target as HTMLElement;
+                if (el.tagName === 'IMG') setLightboxSrc((el as HTMLImageElement).src);
+              }}
             />
           )}
         </div>
@@ -129,6 +138,10 @@ export function ArticleReader({ post, onClose }: ArticleReaderProps) {
 
       {/* Article body styles (injected globally via a style tag in index.html is ideal,
           but a scoped approach works for the MVP) */}
+      {lightboxSrc && (
+        <ImageLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
+      )}
+
       <style>{`
         .article-body h1, .article-body h2, .article-body h3 {
           font-weight: 700; margin: 1.4em 0 0.5em; line-height: 1.3;
@@ -145,7 +158,7 @@ export function ArticleReader({ post, onClose }: ArticleReaderProps) {
           border-left: 3px solid #E8A598; margin: 1em 0; padding: 0.5em 1em;
           color: #666; font-style: italic;
         }
-        .article-body img { max-width: 100%; border-radius: 12px; margin: 1em 0; }
+        .article-body img { max-width: 100%; border-radius: 12px; margin: 1em 0; cursor: zoom-in; }
         .article-body figure { margin: 1em 0; }
         .article-body figcaption { font-size: 0.8em; color: #999; text-align: center; margin-top: 0.25em; }
         .article-body pre, .article-body code {
