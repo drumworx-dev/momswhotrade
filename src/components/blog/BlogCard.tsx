@@ -8,8 +8,10 @@ interface BlogCardProps {
 
 export function BlogCard({ post, onClick }: BlogCardProps) {
   const tagColors: Record<string, string> = {
-    'Beginners Guide': 'bg-bg-secondary text-accent-dark',
-    'Trade Ideas': 'bg-green-50 text-accent-success',
+    'Beginners Guide': 'bg-bg-secondary text-accent-dark dark:bg-[#96522A] dark:text-white',
+    'Tutorials':       'bg-bg-secondary text-accent-dark dark:bg-[#96522A] dark:text-white',
+    'Trade Ideas':     'bg-green-50 text-accent-success dark:bg-[#2A6B49] dark:text-white',
+    'Trades':          'bg-green-50 text-accent-success dark:bg-[#2A6B49] dark:text-white',
   };
 
   return (

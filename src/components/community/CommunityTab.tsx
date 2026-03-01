@@ -9,6 +9,7 @@ import { db, app } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import { useScrollDepth } from '../../hooks/useScrollDepth';
+import { useTheme } from '../../context/ThemeContext';
 
 // ─── Product definitions ────────────────────────────────────────────────────
 
@@ -24,7 +25,7 @@ const PRODUCTS = [
     title: '1:1 Trading Kickstart Call',
     subtitle: 'with Mel — 60 minutes',
     price: '$99',
-    discount: '-20% off',
+    discount: 'Get 20% off',
     badge: 'One-time',
     waitlist: '',
     learnMoreUrl: 'https://whop.com/moms-who-trade/1-1-trading-kickstart-call-with-mel/',
@@ -50,7 +51,7 @@ const PRODUCTS = [
     title: 'First $500 in 30 Days',
     subtitle: 'Foundation Workshop',
     price: '$149',
-    discount: '-20% off',
+    discount: 'Get 20% off',
     badge: 'Workshop',
     waitlist: 'Waitlist Now Open',
     learnMoreUrl: 'https://whop.com/moms-who-trade/first-500-in-30-days-workshop/',
@@ -95,11 +96,36 @@ const SUCCESS_CONTENT = {
 export function CommunityTab() {
   const { user } = useAuth();
   const { track } = useAnalytics();
+  const { isDark } = useTheme();
   const levelUpRef = useRef<HTMLDivElement>(null);
   useScrollDepth(levelUpRef, 'level-up');
   const [activePlanId, setActivePlanId]   = useState<string | null>(null);
   const [successPlanId, setSuccessPlanId] = useState<string | null>(null);
   const [imgErrors, setImgErrors]         = useState<Record<string, boolean>>({});
+
+  // ── Dark-mode aware colour resolver ────────────────────────────────────────
+  // In dark mode: call = emerald, workshop = terracotta, all Whop links = light peach,
+  // all bullet ticks = lighter green (visible on dark card backgrounds).
+  const getColors = (planId: string) => {
+    const p = PRODUCTS.find(pr => pr.planId === planId)!;
+    if (isDark) {
+      const isCall = planId === PLAN_CALL;
+      return {
+        pillBg:      isCall ? '#2A6B49' : '#96522A',
+        accentBg:    isCall ? '#2A6B49' : '#96522A',
+        ctaBg:       isCall ? '#2A6B49' : '#96522A',
+        linkColor:   '#F5C4B0',   // light peach — readable on any dark card
+        bulletColor: '#5CB88A',   // lighter emerald — visible on dark bg
+      };
+    }
+    return {
+      pillBg:      p.pillBg,
+      accentBg:    p.accent,
+      ctaBg:       p.ctaBg,
+      linkColor:   p.accent,
+      bulletColor: p.accent,
+    };
+  };
 
   const activeProduct  = PRODUCTS.find(p => p.planId === activePlanId);
   const successContent = successPlanId ? SUCCESS_CONTENT[successPlanId as keyof typeof SUCCESS_CONTENT] : null;
@@ -193,6 +219,7 @@ export function CommunityTab() {
           {/* Whop Product Cards */}
           {PRODUCTS.map((product, i) => {
             const imageErrored = imgErrors[product.planId];
+            const colors = getColors(product.planId);
             return (
               <motion.div
                 key={product.planId}
@@ -218,10 +245,10 @@ export function CommunityTab() {
                       <span className="text-7xl">{product.emoji}</span>
                     </div>
                   )}
-                  {/* Price pill overlaid on image — always dark so it reads on any photo */}
+                  {/* Price pill overlaid on image */}
                   <div
                     className="absolute top-3 right-3 text-white text-sm font-bold px-3 py-1 rounded-full shadow-lg"
-                    style={{ background: product.pillBg }}
+                    style={{ background: colors.pillBg }}
                   >
                     {product.price}
                   </div>
@@ -233,12 +260,12 @@ export function CommunityTab() {
                   <div className="flex items-center gap-2 mb-3">
                     <span
                       className="text-xs font-semibold px-2.5 py-0.5 rounded-full text-white"
-                      style={{ background: product.accent }}
+                      style={{ background: colors.accentBg }}
                     >
                       {product.badge}
                     </span>
                     {product.discount && (
-                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full border border-text-tertiary text-text-tertiary">
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full border border-text-tertiary text-text-tertiary dark:border-white/30 dark:text-white/75">
                         {product.discount}
                       </span>
                     )}
@@ -247,7 +274,7 @@ export function CommunityTab() {
                       target="_blank"
                       rel="noopener noreferrer"
                       className="ml-auto text-xs font-semibold px-2.5 py-0.5 rounded-full border flex items-center gap-1 hover:opacity-70 transition-opacity"
-                      style={{ borderColor: product.accent, color: product.accent }}
+                      style={{ borderColor: colors.linkColor, color: colors.linkColor }}
                     >
                       View on Whop
                       <ExternalLink size={10} />
@@ -260,7 +287,7 @@ export function CommunityTab() {
                   <ul className="flex flex-col gap-2 mb-5">
                     {product.bullets.map(item => (
                       <li key={item} className="flex items-start gap-2 text-sm text-text-secondary">
-                        <span className="font-bold flex-shrink-0 mt-px" style={{ color: product.accent }}>✓</span>
+                        <span className="font-bold flex-shrink-0 mt-px" style={{ color: colors.bulletColor }}>✓</span>
                         {item}
                       </li>
                     ))}
@@ -272,12 +299,12 @@ export function CommunityTab() {
                       setActivePlanId(product.planId);
                     }}
                     className="flex items-center justify-center w-full text-white rounded-pill px-6 py-4 font-semibold shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 min-h-[52px]"
-                    style={{ background: product.ctaBg }}
+                    style={{ background: colors.ctaBg }}
                   >
                     {product.cta} →
                   </button>
                   {product.waitlist && (
-                    <p className="text-center text-xs font-medium text-text-tertiary mt-2">
+                    <p className="text-center text-xs font-medium text-text-tertiary dark:text-white/60 mt-2">
                       {product.waitlist}
                     </p>
                   )}
