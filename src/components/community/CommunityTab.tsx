@@ -327,20 +327,22 @@ export function CommunityTab() {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="YouTube"
-                className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+                className="flex-1 flex flex-col items-center justify-center gap-2 py-5 rounded-2xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
                 style={{ background: '#96522A' }}
               >
                 <Youtube size={28} className="text-white" />
+                <span className="text-white text-xs font-semibold tracking-wide">YouTube</span>
               </a>
               <a
                 href="https://www.instagram.com/moms_who_trade/"
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Instagram"
-                className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+                className="flex-1 flex flex-col items-center justify-center gap-2 py-5 rounded-2xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
                 style={{ background: '#2A6B49' }}
               >
                 <Instagram size={28} className="text-white" />
+                <span className="text-white text-xs font-semibold tracking-wide">Instagram</span>
               </a>
             </div>
           </motion.div>
