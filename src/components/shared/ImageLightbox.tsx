@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { X } from 'lucide-react';
 
 interface ImageLightboxProps {
@@ -7,7 +7,7 @@ interface ImageLightboxProps {
   onClose: () => void;
 }
 
-function touchDist(a: Touch, b: Touch) {
+function touchDist(a: React.Touch, b: React.Touch) {
   return Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY);
 }
 
