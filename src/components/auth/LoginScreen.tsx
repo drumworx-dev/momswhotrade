@@ -94,9 +94,15 @@ export function LoginScreen() {
             />
           </div>
           <h1 className="text-2xl font-bold text-text-primary text-center">Moms Who Trade</h1>
-          <p className="text-text-secondary text-center mt-1 text-sm">
-            The World's #1 Mom-focused Trading Community
+        </div>
+
+        {/* Hero copy block */}
+        <div className="text-center mb-5">
+          <h2 className="text-xl font-bold text-text-primary">Welcome!</h2>
+          <p className="text-text-secondary text-sm mt-2 leading-relaxed">
+            This community exists to help you make your first $500 trading Bitcoin, stocks and gold — without a finance degree, without watching charts all day, and without asking anyone for permission.
           </p>
+          <p className="text-text-tertiary text-xs mt-2">Watch Mel explain how it works.</p>
         </div>
 
         <AnimatePresence mode="wait">
@@ -108,6 +114,18 @@ export function LoginScreen() {
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.2 }}
             >
+              {/* YouTube embed */}
+              <div className="mb-5 rounded-card overflow-hidden w-full" style={{ position: 'relative', paddingBottom: '56.25%', height: 0 }}>
+                <iframe
+                  src="https://www.youtube.com/embed/hmmLHw1sl4c"
+                  title="Watch Mel explain how it works"
+                  frameBorder="0"
+                  allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+                />
+              </div>
+
               {/* Social buttons */}
               <div className="flex flex-col gap-3 mb-5">
                 <button
