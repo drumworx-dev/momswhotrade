@@ -1,7 +1,7 @@
 // Bump the cache name any time the caching strategy changes.
 // The activate handler deletes all caches NOT matching CACHE_NAME,
 // so incrementing the version clears stale assets from old deployments.
-const CACHE_NAME = 'mwt-v2';
+const CACHE_NAME = 'mwt-v3';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
