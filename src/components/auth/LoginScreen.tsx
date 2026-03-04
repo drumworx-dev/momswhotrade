@@ -72,7 +72,7 @@ export function LoginScreen() {
   const inputClass = "w-full bg-surface-dim border border-gray-200 rounded-input px-4 py-3 text-text-primary placeholder-text-tertiary focus:outline-none focus:ring-2 focus:ring-accent-primary text-sm";
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6 py-12" style={{ backgroundColor: '#FDE2D1' }}>
+    <div className="min-h-screen flex flex-col items-center px-6 py-12 overflow-y-auto" style={{ backgroundColor: '#FDE2D1' }}>
       <motion.div
         className="w-full max-w-sm"
         initial={{ opacity: 0, y: 20 }}
@@ -98,11 +98,10 @@ export function LoginScreen() {
 
         {/* Hero copy block */}
         <div className="text-center mb-5">
-          <h2 className="text-xl font-bold text-text-primary">Welcome!</h2>
-          <p className="text-text-secondary text-sm mt-2 leading-relaxed">
-            This community exists to help you make your first $500 trading Bitcoin, stocks and gold — without a finance degree, without watching charts all day, and without asking anyone for permission.
+          <p className="text-text-secondary text-sm leading-relaxed">
+            Welcome! Our community exists to help you make your first $500 trading — without a finance degree, watching charts all day or asking permission.
           </p>
-          <p className="text-text-tertiary text-xs mt-2">Watch Mel explain how it works.</p>
+          <p className="text-text-tertiary text-xs mt-2">Watch Mel explain how it works:</p>
         </div>
 
         <AnimatePresence mode="wait">
