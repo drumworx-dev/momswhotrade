@@ -21,7 +21,7 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
   const { trades, updateTrade, deleteTrade } = useTrades();
   const { goalRows, syncTrades } = useGoals();
   const [closePrice, setClosePrice] = useState(trade.closePrice?.toString() || '');
-  const [netBanked, setNetBanked] = useState('');
+  const [netGained, setNetGained] = useState('');
   const [entryPrice, setEntryPrice] = useState(trade.entryPrice.toString());
   const [status, setStatus] = useState(trade.status);
   const [cause, setCause] = useState(trade.cause || '');
@@ -42,7 +42,8 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
   // TP slot state — which slot is open for input, and its pending values
   const [activeTP, setActiveTP] = useState<number | null>(null);
   const [tpInputPercent, setTpInputPercent] = useState<25 | 50 | 75 | null>(null);
-  const [tpNetBanked, setTpNetBanked] = useState('');
+  const [tpInputPrice, setTpInputPrice] = useState('');
+  const [tpNetGained, setTpNetGained] = useState('');
 
   // Tracks whether the current close price was auto-filled from TP/SL
   const [closePriceAutoFilled, setClosePriceAutoFilled] = useState(false);
@@ -60,18 +61,37 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
   const openTP = (index: number) => {
     setActiveTP(index);
     setTpInputPercent(null);
-    setTpNetBanked('');
+    setTpInputPrice('');
+    setTpNetGained('');
   };
 
   const handleRecordTP = (tpIndex: number) => {
-    if (!tpInputPercent || !tpNetBanked) return;
-    const nb = parseFloat(tpNetBanked);
-    if (isNaN(nb)) return;
+    if (!tpInputPercent) return;
+    const parsedEntry = parseFloat(entryPrice) || trade.entryPrice;
+    const pp = parseFloat(tpInputPrice);
+    const ng = parseFloat(tpNetGained);
+
+    // Need at least one of: exit price or net gained
+    if (isNaN(pp) && isNaN(ng)) return;
+
+    let pnl: number;
+    if (!isNaN(ng)) {
+      // Net gained takes priority — store it directly
+      pnl = ng;
+    } else {
+      // Calculate from exit price
+      const result = calculateTradeResult(
+        trade.direction, parsedEntry, pp,
+        trade.positionSize * (tpInputPercent / 100),
+        leverage,
+      );
+      pnl = result.profitLoss;
+    }
 
     const newPartial: PartialClose = {
       id: Date.now().toString(),
       percent: tpInputPercent,
-      pnl: nb,
+      pnl,
       date: localDateStr(),
     };
 
@@ -80,10 +100,11 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
     updateTrade(trade.id, updates);
     syncTrades(trades.map(t => t.id === trade.id ? { ...t, ...updates } : t));
 
-    toast.success(`TP${tpIndex + 1} banked — ${nb >= 0 ? '+' : ''}${formatPrice(nb)}`);
+    toast.success(`TP${tpIndex + 1} recorded — ${pnl >= 0 ? '+' : ''}${formatPrice(pnl)}`);
     setActiveTP(null);
     setTpInputPercent(null);
-    setTpNetBanked('');
+    setTpInputPrice('');
+    setTpNetGained('');
   };
 
   const handleUpdate = () => {
@@ -97,21 +118,21 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
 
     let profitable = false;
     const cp = parseFloat(closePrice);
-    const nb = parseFloat(netBanked);
+    const ng = parseFloat(netGained);
     const closingPositionSize = trade.positionSize * remainingFraction;
 
-    if (!isNaN(nb) || (!isNaN(cp) && cp > 0)) {
+    if (!isNaN(ng) || (!isNaN(cp) && cp > 0)) {
       let pnl: number;
       let pnlPct: number;
       let wl: 'win' | 'loss';
 
-      if (!isNaN(nb)) {
-        // User entered what they actually banked — store it directly
-        pnl = nb;
-        pnlPct = closingPositionSize > 0 ? (nb / closingPositionSize) * 100 : 0;
-        wl = nb >= 0 ? 'win' : 'loss';
+      if (!isNaN(ng)) {
+        // Net gained takes priority — store it directly
+        pnl = ng;
+        pnlPct = closingPositionSize > 0 ? (ng / closingPositionSize) * 100 : 0;
+        wl = ng >= 0 ? 'win' : 'loss';
       } else {
-        // Fall back to price-based calculation (no fee deduction)
+        // Fall back to price-based calculation
         const result = calculateTradeResult(trade.direction, parsedEntry, cp, closingPositionSize, leverage);
         pnl = result.profitLoss;
         pnlPct = result.profitLossPercent;
@@ -178,7 +199,6 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
     }
 
     if (profitable) {
-      // Trigger confetti → then auto-show P&L share card
       setClosedTrade({ ...trade, ...updates } as Trade);
       setShowConfetti(true);
     } else {
@@ -197,16 +217,24 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
   // Live P&L preview for the final close
   const parsedEntryNum = parseFloat(entryPrice) || trade.entryPrice;
   const parsedCloseNum = parseFloat(closePrice);
-  const parsedNetBankedNum = parseFloat(netBanked);
+  const parsedNetGainedNum = parseFloat(netGained);
   const grossResult = !isNaN(parsedCloseNum) && parsedCloseNum > 0
     ? calculateTradeResult(trade.direction, parsedEntryNum, parsedCloseNum, trade.positionSize * remainingFraction, leverage)
     : null;
-  const impliedFeeImpact = grossResult && !isNaN(parsedNetBankedNum)
-    ? grossResult.profitLoss - parsedNetBankedNum
+  const impliedFeeImpact = grossResult && !isNaN(parsedNetGainedNum)
+    ? grossResult.profitLoss - parsedNetGainedNum
     : null;
-  // What we'll actually store / show as the PnL
-  const previewPnL = !isNaN(parsedNetBankedNum) ? parsedNetBankedNum : grossResult?.profitLoss ?? null;
+  const previewPnL = !isNaN(parsedNetGainedNum) ? parsedNetGainedNum : grossResult?.profitLoss ?? null;
   const showPreview = previewPnL !== null;
+
+  // Live preview for the currently-open TP slot (from exit price)
+  const tpParsedPrice = parseFloat(tpInputPrice);
+  const tpGrossResult = activeTP !== null && tpInputPercent && tpInputPrice && !isNaN(tpParsedPrice)
+    ? calculateTradeResult(trade.direction, parsedEntryNum, tpParsedPrice, trade.positionSize * (tpInputPercent / 100), leverage)
+    : null;
+  const tpParsedNetGained = parseFloat(tpNetGained);
+  // What we'll actually store for the partial
+  const tpPreviewPnL = !isNaN(tpParsedNetGained) ? tpParsedNetGained : tpGrossResult?.profitLoss ?? null;
 
   return (
     <>
@@ -263,8 +291,6 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
             onChange={e => {
               const newStatus = e.target.value as Trade['status'];
               setStatus(newStatus);
-              // Pre-fill close price from trade data when selecting a terminal status
-              // Only replaces the price if the field is empty OR was previously auto-filled
               const canAutoFill = !closePrice || closePriceAutoFilled;
               if (newStatus === 'tp_reached' && trade.takeProfit && canAutoFill) {
                 setClosePrice(trade.takeProfit.toString());
@@ -316,16 +342,16 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
 
         <div>
           <Input
-            label="Net banked ($)"
+            label="Net gained ($) — optional"
             prefix="$"
             type="text"
             placeholder="What actually hit your account"
-            value={displayNum(netBanked)}
-            onChange={e => setNetBanked(normalizeInput(e.target.value))}
+            value={displayNum(netGained)}
+            onChange={e => setNetGained(normalizeInput(e.target.value))}
             inputMode="decimal"
           />
           <p className="text-xs text-text-tertiary mt-1 px-0.5">
-            Enter what you actually received — fees are implied from the difference vs. close price.
+            Overrides the close-price calculation. Leave blank to use the price above.
           </p>
         </div>
 
@@ -337,7 +363,7 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
             </div>
             {impliedFeeImpact !== null && Math.abs(impliedFeeImpact) > 0.001 && (
               <div className="text-center text-xs text-text-tertiary">
-                Implied fee impact: −{formatPrice(Math.abs(impliedFeeImpact))}
+                Implied fees: −{formatPrice(Math.abs(impliedFeeImpact))}
               </div>
             )}
             {(leverage > 1 || remainingFraction < 1) && (
@@ -423,7 +449,6 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
 
               // ── Active (expanded) row ───────────────────────────
               if (isActive) {
-                const parsedNb = parseFloat(tpNetBanked);
                 return (
                   <div key={tpIndex} className="border-t border-gray-100">
                     <div className="px-4 pt-3 pb-2 flex items-center gap-2">
@@ -436,11 +461,11 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
                     </div>
 
                     <div className="px-4 pb-4 flex flex-col gap-3">
-                      {/* Two-column: % pills left, net banked right */}
+                      {/* Row 1: % pills + exit price */}
                       <div className="flex gap-3 items-start">
                         {/* Left column — % pills stacked */}
                         <div className="flex flex-col gap-1.5 w-[72px] flex-shrink-0">
-                          <div className="text-xs text-text-tertiary font-medium mb-0.5">% closed</div>
+                          <div className="text-xs text-text-tertiary font-medium mb-0.5">% to close</div>
                           {slotOptions.map(p => (
                             <button
                               key={p}
@@ -457,35 +482,55 @@ export function TradeDetailModal({ trade, open, onClose }: TradeDetailModalProps
                           ))}
                         </div>
 
-                        {/* Right column — net banked input + preview */}
+                        {/* Right column — exit price */}
                         <div className="flex-1 flex flex-col gap-2">
-                          <div className="text-xs text-text-tertiary font-medium mb-0.5">Net banked ($)</div>
+                          <div className="text-xs text-text-tertiary font-medium mb-0.5">Exit price</div>
                           <div className="relative">
                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary text-sm">$</span>
                             <input
                               type="text"
                               inputMode="decimal"
                               placeholder="0.00"
-                              value={displayNum(tpNetBanked)}
-                              onChange={e => setTpNetBanked(normalizeInput(e.target.value))}
+                              value={displayNum(tpInputPrice)}
+                              onChange={e => setTpInputPrice(normalizeInput(e.target.value))}
                               className="w-full bg-surface-dim border border-gray-200 rounded-input pl-7 pr-3 py-2.5 text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary text-sm"
                             />
                           </div>
-
-                          {tpNetBanked && !isNaN(parsedNb) && (
-                            <div className={`rounded-lg px-3 py-2 text-center ${parsedNb >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
-                              <div className={`text-sm font-bold ${parsedNb >= 0 ? 'text-accent-success' : 'text-accent-error'}`}>
-                                {parsedNb >= 0 ? '+' : ''}{formatPrice(parsedNb)} banked
-                              </div>
-                            </div>
-                          )}
                         </div>
                       </div>
+
+                      {/* Row 2: Net gained override */}
+                      <div className="flex flex-col gap-1">
+                        <div className="text-xs text-text-tertiary font-medium">Net gained ($) — optional</div>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary text-sm">$</span>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            placeholder="Overrides price calculation"
+                            value={displayNum(tpNetGained)}
+                            onChange={e => setTpNetGained(normalizeInput(e.target.value))}
+                            className="w-full bg-surface-dim border border-gray-200 rounded-input pl-7 pr-3 py-2.5 text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary text-sm"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Preview */}
+                      {tpPreviewPnL !== null && (
+                        <div className={`rounded-lg px-3 py-2 text-center ${tpPreviewPnL >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
+                          <div className={`text-sm font-bold ${tpPreviewPnL >= 0 ? 'text-accent-success' : 'text-accent-error'}`}>
+                            {tpPreviewPnL >= 0 ? '+' : ''}{formatPrice(tpPreviewPnL)}
+                          </div>
+                          {!isNaN(tpParsedNetGained) && tpGrossResult && Math.abs(tpGrossResult.profitLoss - tpParsedNetGained) > 0.001 && (
+                            <div className="text-xs text-text-tertiary">Implied fees: −{formatPrice(Math.abs(tpGrossResult.profitLoss - tpParsedNetGained))}</div>
+                          )}
+                        </div>
+                      )}
 
                       <button
                         type="button"
                         onClick={() => handleRecordTP(tpIndex)}
-                        disabled={!tpInputPercent || !tpNetBanked}
+                        disabled={!tpInputPercent || (!tpInputPrice && !tpNetGained)}
                         className="w-full py-2.5 rounded-pill text-sm font-semibold bg-text-primary text-white disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
                       >
                         Record {label} & Keep Running
