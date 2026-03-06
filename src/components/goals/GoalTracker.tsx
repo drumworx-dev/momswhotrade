@@ -381,29 +381,6 @@ export function GoalTracker() {
           </div>
         </div>
 
-        {/* Estimated Closing Fee */}
-        <div>
-          <label className="block text-sm font-medium text-text-secondary mb-1.5">Estimated Closing Fee</label>
-          <p className="text-xs text-text-tertiary mb-2">
-            Deducted from every trade close and partial. Keeps your numbers realistic.
-          </p>
-          <div className="flex gap-2">
-            {([0.5, 1, 1.5, 2] as const).map(f => (
-              <button
-                key={f}
-                onClick={() => updateSettings({ tradingFeePercent: f })}
-                className={`flex-1 py-2 rounded-pill text-sm font-medium border transition-all ${
-                  settings.tradingFeePercent === f
-                    ? 'bg-text-primary text-white border-text-primary'
-                    : 'bg-white border-gray-200 text-text-secondary hover:border-text-primary'
-                }`}
-              >
-                {f}%
-              </button>
-            ))}
-          </div>
-        </div>
-
         {/* Resync Trades */}
         <button
           onClick={() => { handleSyncTrades(); setSettingsOpen(false); }}
