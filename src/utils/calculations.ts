@@ -77,19 +77,16 @@ export function calculateTradeResult(
   closePrice: number,
   positionSize: number,   // dollar margin
   leverage: number = 1,
-  feePercent: number = 0  // closing fee as % of effective position
 ) {
   const effectivePosition = positionSize * leverage;
   const priceChangePct = direction === 'long'
     ? (closePrice - entryPrice) / entryPrice
     : (entryPrice - closePrice) / entryPrice;
 
-  const rawPnL            = priceChangePct * effectivePosition;
-  const fee               = effectivePosition * (feePercent / 100);
-  const profitLoss        = rawPnL - fee;
+  const profitLoss        = priceChangePct * effectivePosition;
   const profitLossPercent = positionSize > 0 ? (profitLoss / positionSize) * 100 : 0;
   const winLoss: 'win' | 'loss' = profitLoss >= 0 ? 'win' : 'loss';
-  return { profitLoss, profitLossPercent, winLoss, fee };
+  return { profitLoss, profitLossPercent, winLoss };
 }
 
 export function compoundBalance(startBalance: number, dailyPercent: number, days: number): number {
