@@ -5,7 +5,7 @@ import { getAnalytics, isSupported } from 'firebase/analytics';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyDTpMwA3YoynWGyuoIGkdDXZD_jva9Kh-k',
-  authDomain: 'app.momswhotrade.co',
+  authDomain: 'moms-who-trade.firebaseapp.com',
   projectId: 'moms-who-trade',
   storageBucket: 'moms-who-trade.firebasestorage.app',
   messagingSenderId: '469803981741',
